@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GatePermit.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">smart-parking-garage</a> &gt; <a href="index.source.html" class="el_package">parking.gate</a> &gt; <span class="el_source">GatePermit.java</span></div><h1>GatePermit.java</h1><pre class="source lang-java linenums">package parking.gate;
+
+import parking.store.ParkingException;
+import static parking.store.ParkingException.Reason.ILLEGAL_TRANSITION;
+
+public final class GatePermit {
+<span class="fc" id="L7">    public enum Status { NEW, AUTHORIZED, REVOKED }</span>
+    private final String id;
+    private final String plate;
+    private Status status;
+<span class="fc" id="L11">    public GatePermit(String id, String plate, Status status) {</span>
+<span class="fc" id="L12">        this.id = id; this.plate = plate; this.status = status;</span>
+<span class="fc" id="L13">    }</span>
+<span class="fc" id="L14">    public void authorize() { transition(Status.NEW, Status.AUTHORIZED); }</span>
+<span class="fc" id="L15">    public void revoke() { transition(Status.AUTHORIZED, Status.REVOKED); }</span>
+    private void transition(Status from, Status to) {
+<span class="fc bfc" id="L17" title="All 2 branches covered.">        if (status != from) throw new ParkingException(ILLEGAL_TRANSITION, &quot;Gate permit cannot move from &quot; + status + &quot; to &quot; + to);</span>
+<span class="fc" id="L18">        status = to;</span>
+<span class="fc" id="L19">    }</span>
+<span class="fc" id="L20">    public String id() { return id; }</span>
+<span class="fc" id="L21">    public String plate() { return plate; }</span>
+<span class="fc" id="L22">    public Status status() { return status; }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

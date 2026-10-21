@@ -1,0 +1,811 @@
+From 80c1ac664c854073a4a03225aed63f08180d8ce6 Mon Sep 17 00:00:00 2001
+From: Project Maintenance <project-maintenance@localhost>
+Date: Tue, 20 Oct 2026 15:06:08 +0500
+Subject: [PATCH] Assignment 5 after: extract two strategy families with
+ runtime selectors and durable quotes
+
+---
+ pom.xml                                       |   2 +-
+ .../allocation/AllocationSelector.java        |  23 ++
+ .../allocation/AllocationSituation.java       |   6 +
+ .../allocation/AllocationStrategy.java        |   3 +
+ .../allocation/FirstFreeAllocation.java       |   6 +
+ .../allocation/LeastUsedAllocation.java       |   8 +
+ .../allocation/NearLiftAllocation.java        |   9 +
+ .../parking/allocation/SpaceAvailability.java |  21 ++
+ .../java/parking/app/GarageApplication.java   |  33 ++-
+ src/main/java/parking/app/Main.java           |  12 +
+ src/main/java/parking/app/StrategyDemo.java   |  48 ++++
+ .../parking/billing/BillingRepository.java    |  10 +
+ .../java/parking/billing/PaymentTerminal.java |  14 +-
+ src/main/java/parking/billing/PriceQuote.java |   3 +
+ .../java/parking/billing/PricingPolicy.java   |  30 +--
+ .../java/parking/pricing/CappedPricing.java   |   4 +
+ .../java/parking/pricing/DemandPricing.java   |  14 ++
+ .../java/parking/pricing/DurationRules.java   |  10 +
+ .../java/parking/pricing/HourlyPricing.java   |   4 +
+ .../java/parking/pricing/PricingSelector.java |  28 +++
+ .../parking/pricing/PricingSituation.java     |   7 +
+ .../java/parking/pricing/PricingStrategy.java |   3 +
+ .../parking/space/ReservationManager.java     |   3 +-
+ .../java/parking/space/SpaceSensorGrid.java   |  23 +-
+ .../java/parking/strategy/StrategyTest.java   | 210 ++++++++++++++++++
+ 25 files changed, 497 insertions(+), 37 deletions(-)
+ create mode 100644 src/main/java/parking/allocation/AllocationSelector.java
+ create mode 100644 src/main/java/parking/allocation/AllocationSituation.java
+ create mode 100644 src/main/java/parking/allocation/AllocationStrategy.java
+ create mode 100644 src/main/java/parking/allocation/FirstFreeAllocation.java
+ create mode 100644 src/main/java/parking/allocation/LeastUsedAllocation.java
+ create mode 100644 src/main/java/parking/allocation/NearLiftAllocation.java
+ create mode 100644 src/main/java/parking/allocation/SpaceAvailability.java
+ create mode 100644 src/main/java/parking/app/StrategyDemo.java
+ create mode 100644 src/main/java/parking/billing/PriceQuote.java
+ create mode 100644 src/main/java/parking/pricing/CappedPricing.java
+ create mode 100644 src/main/java/parking/pricing/DemandPricing.java
+ create mode 100644 src/main/java/parking/pricing/DurationRules.java
+ create mode 100644 src/main/java/parking/pricing/HourlyPricing.java
+ create mode 100644 src/main/java/parking/pricing/PricingSelector.java
+ create mode 100644 src/main/java/parking/pricing/PricingSituation.java
+ create mode 100644 src/main/java/parking/pricing/PricingStrategy.java
+ create mode 100644 src/test/java/parking/strategy/StrategyTest.java
+
+diff --git a/pom.xml b/pom.xml
+index 8ab217c..d7daef6 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -14,7 +14,7 @@
+     <plugin><groupId>org.jacoco</groupId><artifactId>jacoco-maven-plugin</artifactId><version>0.8.12</version><executions>
+       <execution><goals><goal>prepare-agent</goal></goals></execution>
+       <execution><id>coverage-report</id><phase>test</phase><goals><goal>report</goal></goals></execution>
+-      <execution><id>coverage-check</id><phase>test</phase><goals><goal>check</goal></goals><configuration><rules><rule><element>PACKAGE</element><includes><include>parking.gate</include><include>parking.space</include><include>parking.billing</include><include>parking.facade</include></includes><limits><limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>0.80</minimum></limit></limits></rule></rules></configuration></execution>
++      <execution><id>coverage-check</id><phase>test</phase><goals><goal>check</goal></goals><configuration><rules><rule><element>PACKAGE</element><includes><include>parking.gate</include><include>parking.space</include><include>parking.billing</include><include>parking.facade</include><include>parking.pricing</include><include>parking.allocation</include></includes><limits><limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>0.80</minimum></limit></limits></rule></rules></configuration></execution>
+     </executions></plugin>
+   </plugins></build>
+ </project>
+diff --git a/src/main/java/parking/allocation/AllocationSelector.java b/src/main/java/parking/allocation/AllocationSelector.java
+new file mode 100644
+index 0000000..9138539
+--- /dev/null
++++ b/src/main/java/parking/allocation/AllocationSelector.java
+@@ -0,0 +1,23 @@
++package parking.allocation;
++public final class AllocationSelector {
++    private String mode = "first";
++    public void setMode(String mode) {
++        if (!"auto".equals(mode)) manual(mode);
++        this.mode = mode;
++    }
++    public String mode() { return mode; }
++    public AllocationStrategy manual(String mode) {
++        return switch (mode) {
++            case "first" -> new FirstFreeAllocation();
++            case "lift" -> new NearLiftAllocation();
++            case "balanced" -> new LeastUsedAllocation();
++            default -> throw new IllegalArgumentException("Use first, lift, balanced or auto");
++        };
++    }
++    public AllocationStrategy select(AllocationSituation situation) {
++        if (!"auto".equals(mode)) return manual(mode);
++        if (situation.preferLift()) return new NearLiftAllocation();
++        if (situation.localHour() >= 8 && situation.localHour() < 18) return new LeastUsedAllocation();
++        return new FirstFreeAllocation();
++    }
++}
+diff --git a/src/main/java/parking/allocation/AllocationSituation.java b/src/main/java/parking/allocation/AllocationSituation.java
+new file mode 100644
+index 0000000..cca1cbb
+--- /dev/null
++++ b/src/main/java/parking/allocation/AllocationSituation.java
+@@ -0,0 +1,6 @@
++package parking.allocation;
++public record AllocationSituation(boolean preferLift, int localHour) {
++    public AllocationSituation {
++        if (localHour < 0 || localHour > 23) throw new IllegalArgumentException("Hour must be 0-23");
++    }
++}
+diff --git a/src/main/java/parking/allocation/AllocationStrategy.java b/src/main/java/parking/allocation/AllocationStrategy.java
+new file mode 100644
+index 0000000..b00d754
+--- /dev/null
++++ b/src/main/java/parking/allocation/AllocationStrategy.java
+@@ -0,0 +1,3 @@
++package parking.allocation;
++@FunctionalInterface
++public interface AllocationStrategy { int choose(SpaceAvailability spaces); }
+diff --git a/src/main/java/parking/allocation/FirstFreeAllocation.java b/src/main/java/parking/allocation/FirstFreeAllocation.java
+new file mode 100644
+index 0000000..b928644
+--- /dev/null
++++ b/src/main/java/parking/allocation/FirstFreeAllocation.java
+@@ -0,0 +1,6 @@
++package parking.allocation;
++public final class FirstFreeAllocation implements AllocationStrategy {
++    @Override public int choose(SpaceAvailability spaces) {
++        return spaces.freeSpaces().stream().min(Integer::compareTo).orElseThrow();
++    }
++}
+diff --git a/src/main/java/parking/allocation/LeastUsedAllocation.java b/src/main/java/parking/allocation/LeastUsedAllocation.java
+new file mode 100644
+index 0000000..b523211
+--- /dev/null
++++ b/src/main/java/parking/allocation/LeastUsedAllocation.java
+@@ -0,0 +1,8 @@
++package parking.allocation;
++import java.util.Comparator;
++public final class LeastUsedAllocation implements AllocationStrategy {
++    @Override public int choose(SpaceAvailability spaces) {
++        return spaces.freeSpaces().stream().min(Comparator.<Integer>comparingLong(n -> spaces.previousUses().getOrDefault(n, 0L))
++                .thenComparingInt(Integer::intValue)).orElseThrow();
++    }
++}
+diff --git a/src/main/java/parking/allocation/NearLiftAllocation.java b/src/main/java/parking/allocation/NearLiftAllocation.java
+new file mode 100644
+index 0000000..36d4478
+--- /dev/null
++++ b/src/main/java/parking/allocation/NearLiftAllocation.java
+@@ -0,0 +1,9 @@
++package parking.allocation;
++import java.util.Comparator;
++/** Bay 2 is closest to the lift; equal distances prefer the smaller bay number. */
++public final class NearLiftAllocation implements AllocationStrategy {
++    @Override public int choose(SpaceAvailability spaces) {
++        return spaces.freeSpaces().stream().min(Comparator.<Integer>comparingInt(n -> Math.abs(n - 2))
++                .thenComparingInt(Integer::intValue)).orElseThrow();
++    }
++}
+diff --git a/src/main/java/parking/allocation/SpaceAvailability.java b/src/main/java/parking/allocation/SpaceAvailability.java
+new file mode 100644
+index 0000000..e96c9bf
+--- /dev/null
++++ b/src/main/java/parking/allocation/SpaceAvailability.java
+@@ -0,0 +1,21 @@
++package parking.allocation;
++import java.util.*;
++import java.util.stream.IntStream;
++import parking.space.SpaceSensorGrid;
++import parking.store.ParkingException;
++import static parking.store.ParkingException.Reason.*;
++/** Immutable input snapshot shared by every allocation algorithm. */
++public record SpaceAvailability(List<Integer> freeSpaces, Map<Integer, Long> previousUses) {
++    public SpaceAvailability {
++        freeSpaces = List.copyOf(freeSpaces); previousUses = Map.copyOf(previousUses);
++        if (freeSpaces.isEmpty()) throw new ParkingException(NO_SPACE, "No space available: sensor grid reports a full garage");
++        if (freeSpaces.stream().anyMatch(n -> n < 1 || n > SpaceSensorGrid.CAPACITY)
++                || previousUses.values().stream().anyMatch(n -> n < 0))
++            throw new IllegalArgumentException("Invalid bay or negative use count");
++    }
++    public static SpaceAvailability from(Set<Integer> occupied, Set<Integer> blocked, boolean online, Map<Integer, Long> uses) {
++        if (!online) throw new ParkingException(SENSOR_OFFLINE, "Space sensors are offline");
++        return new SpaceAvailability(IntStream.rangeClosed(1, SpaceSensorGrid.CAPACITY)
++                .filter(n -> !occupied.contains(n) && !blocked.contains(n)).boxed().toList(), uses);
++    }
++}
+diff --git a/src/main/java/parking/app/GarageApplication.java b/src/main/java/parking/app/GarageApplication.java
+index 05272d0..9f4a58c 100644
+--- a/src/main/java/parking/app/GarageApplication.java
++++ b/src/main/java/parking/app/GarageApplication.java
+@@ -9,6 +9,10 @@ import parking.gate.*;
+ import parking.space.*;
+ import parking.billing.*;
+ import parking.facade.*;
++import parking.pricing.*;
++import parking.allocation.*;
++import java.time.ZoneId;
++import java.time.ZonedDateTime;
+ 
+ /** Composition root and single-writer lock; closes the lock on real restarts. */
+ public final class GarageApplication implements AutoCloseable {
+@@ -16,7 +20,16 @@ public final class GarageApplication implements AutoCloseable {
+     private final FileLock lock;
+     private final ParkingFacade parking;
+     private final AdminFacade admin;
++    private final PricingPolicy pricing = new PricingPolicy();
++    private final SpaceSensorGrid sensors = new SpaceSensorGrid();
++    private final SimulatedOccupancySource occupancy = new SimulatedOccupancySource(0.0);
++    private final PricingSelector pricingSelector = new PricingSelector(occupancy);
++    private final AllocationSelector allocationSelector = new AllocationSelector();
++    private final Clock clock;
++    private final ZoneId zone = ZoneId.of("Asia/Almaty");
++    private boolean preferLift;
+     public GarageApplication(Path directory, Clock clock) {
++        this.clock = clock;
+         CsvStore store = new CsvStore(directory);
+         try {
+             lockChannel = FileChannel.open(directory.resolve("garage.lock"), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+@@ -27,12 +40,28 @@ public final class GarageApplication implements AutoCloseable {
+             lock = acquired;
+         } catch (IOException e) { throw new StorageException("Cannot lock garage store", e); }
+         GateController gate = new GateController(new GateRepository(store), new LicensePlateReader());
+-        ReservationManager spaces = new ReservationManager(new SpaceRepository(store), new SpaceSensorGrid());
+-        PaymentTerminal billing = new PaymentTerminal(new BillingRepository(store), new PricingPolicy(), new OverstayAlert(), clock);
++        ReservationManager spaces = new ReservationManager(new SpaceRepository(store), sensors);
++        PaymentTerminal billing = new PaymentTerminal(new BillingRepository(store), pricing, new OverstayAlert(), clock);
+         WorkflowRepository workflows = new WorkflowRepository(store);
+         parking = new ParkingFacade(gate, spaces, billing, workflows);
+         admin = new AdminFacade(gate, spaces, billing, workflows, parking);
+     }
++    /** Composition configuration only; the facade still owns every workflow step. */
++    public void configureStrategies(String pricingMode, String allocationMode, double sensorOccupancy, boolean preferLift) {
++        // Validate the complete request before mutating the live configuration.
++        PricingSelector checkPricing = new PricingSelector(occupancy); checkPricing.setMode(pricingMode);
++        AllocationSelector checkAllocation = new AllocationSelector(); checkAllocation.setMode(allocationMode);
++        new SimulatedOccupancySource(sensorOccupancy);
++        pricingSelector.setMode(pricingMode); allocationSelector.setMode(allocationMode);
++        occupancy.setOccupancy(sensorOccupancy); this.preferLift = preferLift;
++    }
++    /** Called for new requests; automatic rules use the actual requested duration. */
++    public void prepareStrategies(int hours) {
++        int hour = ZonedDateTime.now(clock.withZone(zone)).getHour();
++        pricing.setStrategy(pricingSelector.select(new PricingSituation(hours, hour)));
++        sensors.setStrategy(allocationSelector.select(new AllocationSituation(preferLift, hour)));
++    }
++    public String strategyModes() { return "pricing=" + pricingSelector.mode() + ", allocation=" + allocationSelector.mode(); }
+     public ParkingFacade parking() { return parking; }
+     public AdminFacade admin() { return admin; }
+     @Override public void close() {
+diff --git a/src/main/java/parking/app/Main.java b/src/main/java/parking/app/Main.java
+index 927c85b..7228c1b 100644
+--- a/src/main/java/parking/app/Main.java
++++ b/src/main/java/parking/app/Main.java
+@@ -17,6 +17,7 @@ public final class Main {
+                 System.out.println("\n1 Park  2 Inspect all  3 Full garage (B failure)  4 Declined payment (C failure)");
+                 System.out.println("5 Pause after A  6 Pause after B  7 Resume ID  8 Cancel ID  9 Recover pending");
+                 System.out.println("10 Close/open gate  11 Sensors online/offline  12 Overstay alerts  0 Exit");
++                System.out.println("13 Strategy demonstration  14 Configure strategies");
+                 System.out.print("Choice: ");
+                 if (!input.hasNextLine()) break;
+                 String choice = input.nextLine().trim();
+@@ -26,6 +27,7 @@ public final class Main {
+                         case "1", "3", "4", "5", "6" -> {
+                             System.out.print("License plate (example 123ABC01): "); String plate = input.nextLine();
+                             System.out.print("Whole hours (1-24): "); int hours = Integer.parseInt(input.nextLine());
++                            app.prepareStrategies(hours);
+                             Card card = choice.equals("4") ? Card.DECLINE : Card.APPROVE;
+                             ParkingFacade.Checkpoint stop = choice.equals("5") ? ParkingFacade.Checkpoint.AFTER_A :
+                                 choice.equals("6") ? ParkingFacade.Checkpoint.AFTER_B : ParkingFacade.Checkpoint.NONE;
+@@ -45,9 +47,19 @@ public final class Main {
+                         case "10" -> { System.out.print("Gate open? true/false: "); app.admin().setGateOpen(booleanInput(input)); }
+                         case "11" -> { System.out.print("Sensors online? true/false: "); app.admin().setSensorsOnline(booleanInput(input)); }
+                         case "12" -> System.out.println("Overdue workflow IDs: " + app.admin().overdueIds());
++                        case "13" -> StrategyDemo.run();
++                        case "14" -> {
++                            System.out.print("Pricing: hourly / capped / demand / auto: "); String price = input.nextLine().trim();
++                            System.out.print("Allocation: first / lift / balanced / auto: "); String allocation = input.nextLine().trim();
++                            System.out.print("Simulated occupancy fraction (0-1): "); double occupancy = Double.parseDouble(input.nextLine());
++                            System.out.print("Prefer a bay near the lift? true/false: "); boolean lift = booleanInput(input);
++                            app.configureStrategies(price, allocation, occupancy, lift);
++                            System.out.println("Configured " + app.strategyModes() + ". Applied to each new park request.");
++                        }
+                         default -> System.out.println("Unknown menu option");
+                     }
+                 } catch (NumberFormatException e) { System.out.println("Input error: enter a whole number"); }
++                catch (IllegalArgumentException e) { System.out.println("Input error: " + e.getMessage()); }
+                 catch (ParkingException e) { System.out.println("Domain error [" + e.reason() + "]: " + e.getMessage()); }
+                 catch (StorageException e) { System.out.println("Storage error: " + e.getMessage() + ". Repair access, restart and recover pending work."); }
+             }
+diff --git a/src/main/java/parking/app/StrategyDemo.java b/src/main/java/parking/app/StrategyDemo.java
+new file mode 100644
+index 0000000..94d8e80
+--- /dev/null
++++ b/src/main/java/parking/app/StrategyDemo.java
+@@ -0,0 +1,48 @@
++package parking.app;
++
++import java.util.*;
++import parking.billing.PricingPolicy;
++import parking.space.SpaceSensorGrid;
++import parking.pricing.*;
++import parking.allocation.*;
++
++/** Deterministic comparison independent of the production store. */
++public final class StrategyDemo {
++    private StrategyDemo() {}
++    public static void main(String[] args) { run(); }
++    public static void run() {
++        SimulatedOccupancySource source = new SimulatedOccupancySource(0.8);
++        PricingSelector prices = new PricingSelector(source);
++        PricingPolicy price = new PricingPolicy(new HourlyPricing());
++        System.out.println("PRICING: identical input = 8 hours, occupancy 0.8");
++        for (String name : List.of("hourly", "capped", "demand")) {
++            price.setStrategy(prices.manual(name));
++            System.out.println("Runtime switch -> " + name + ": " + price.amountFor(8) + " KZT");
++        }
++        prices.setMode("auto");
++        for (PricingSituation situation : List.of(new PricingSituation(8,12), new PricingSituation(3,12), new PricingSituation(3,23))) {
++            PricingStrategy selected = prices.select(situation); price.setStrategy(selected);
++            System.out.println("Automatic " + situation + " -> " + selected.getClass().getSimpleName() + ": " + price.amountFor(situation.hours()));
++        }
++        prices.setMode("hourly");
++        price.setStrategy(prices.select(new PricingSituation(8,12)));
++        System.out.println("Manual override at peak -> hourly: " + price.amountFor(8));
++        price.setStrategy(new DemandPricing(source)); source.setOccupancy(0);
++        System.out.println("Same demand strategy, sensor replaced by new reading -> " + price.amountFor(8));
++
++        SpaceAvailability input = new SpaceAvailability(List.of(1,2,3), Map.of(1,5L,2,2L,3,0L));
++        SpaceSensorGrid grid = new SpaceSensorGrid(); AllocationSelector allocations = new AllocationSelector();
++        System.out.println("ALLOCATION: identical free bays [1,2,3], previous uses {1=5,2=2,3=0}");
++        for (String name : List.of("first", "lift", "balanced")) {
++            grid.setStrategy(allocations.manual(name));
++            System.out.println("Runtime switch -> " + name + ": bay " + grid.choose(input));
++        }
++        allocations.setMode("auto");
++        for (AllocationSituation situation : List.of(new AllocationSituation(true,12),new AllocationSituation(false,12),new AllocationSituation(false,23))) {
++            AllocationStrategy selected = allocations.select(situation); grid.setStrategy(selected);
++            System.out.println("Automatic " + situation + " -> " + selected.getClass().getSimpleName() + ": bay " + grid.choose(input));
++        }
++        allocations.setMode("first"); grid.setStrategy(allocations.select(new AllocationSituation(true,12)));
++        System.out.println("Manual override near lift -> first: bay " + grid.choose(input));
++    }
++}
+diff --git a/src/main/java/parking/billing/BillingRepository.java b/src/main/java/parking/billing/BillingRepository.java
+index b9f08c4..5adf80c 100644
+--- a/src/main/java/parking/billing/BillingRepository.java
++++ b/src/main/java/parking/billing/BillingRepository.java
+@@ -16,4 +16,14 @@ public final class BillingRepository {
+         payments.removeIf(p -> p.id().equals(payment.id())); payments.add(payment);
+         store.write("billing", payments.stream().map(p -> new String[]{p.id(), String.valueOf(p.amount()), p.dueAt().toString(), p.status().name()}).toList());
+     }
++    public Optional<PriceQuote> findQuote(String id) {
++        return store.read("price_quotes").stream().filter(r -> r[0].equals(id))
++            .map(r -> new PriceQuote(r[0], Integer.parseInt(r[1]), Integer.parseInt(r[2]))).findFirst();
++    }
++    public void saveQuote(PriceQuote quote) {
++        List<String[]> rows = new ArrayList<>(store.read("price_quotes"));
++        rows.removeIf(r -> r[0].equals(quote.id()));
++        rows.add(new String[]{quote.id(), String.valueOf(quote.hours()), String.valueOf(quote.amount())});
++        store.write("price_quotes", rows);
++    }
+ }
+diff --git a/src/main/java/parking/billing/PaymentTerminal.java b/src/main/java/parking/billing/PaymentTerminal.java
+index 74012cd..092aa2c 100644
+--- a/src/main/java/parking/billing/PaymentTerminal.java
++++ b/src/main/java/parking/billing/PaymentTerminal.java
+@@ -15,7 +15,19 @@ public final class PaymentTerminal {
+         this.repository = repository; this.pricing = pricing; this.alert = alert; this.clock = clock;
+     }
+     public Payment confirm(String id, int hours, Card card) {
+-        int amount = pricing.amountFor(hours);
++        parking.pricing.DurationRules.requireValid(hours);
++        PriceQuote quote = repository.findQuote(id).orElseGet(() -> {
++            // Assignment 4 records used the fixed hourly tariff and contain no quote.
++            int amount = repository.find(id).map(p -> hours * PricingPolicy.HOURLY_RATE).orElseGet(() -> pricing.amountFor(hours));
++            repository.find(id).ifPresent(existing -> {
++                if (existing.amount() != amount) throw new ParkingException(CONFLICT, "Existing payment has a different amount");
++            });
++            PriceQuote created = new PriceQuote(id, hours, amount);
++            repository.saveQuote(created);
++            return created;
++        });
++        if (quote.hours() != hours) throw new ParkingException(CONFLICT, "Existing payment has different hours");
++        int amount = quote.amount();
+         Payment payment = repository.find(id).orElseGet(() -> new Payment(id, amount, alert.dueAt(clock.instant(), hours), Payment.Status.NEW));
+         if (payment.amount() != amount) throw new ParkingException(CONFLICT, "Existing payment has a different amount");
+         if (payment.status() == Payment.Status.PAID) return payment;
+diff --git a/src/main/java/parking/billing/PriceQuote.java b/src/main/java/parking/billing/PriceQuote.java
+new file mode 100644
+index 0000000..677b34b
+--- /dev/null
++++ b/src/main/java/parking/billing/PriceQuote.java
+@@ -0,0 +1,3 @@
++package parking.billing;
++/** Persisted tariff result pins retries to the first price decision. */
++public record PriceQuote(String id, int hours, int amount) {}
+diff --git a/src/main/java/parking/billing/PricingPolicy.java b/src/main/java/parking/billing/PricingPolicy.java
+index 8b95644..77c2569 100644
+--- a/src/main/java/parking/billing/PricingPolicy.java
++++ b/src/main/java/parking/billing/PricingPolicy.java
+@@ -1,26 +1,14 @@
+ package parking.billing;
+-
+ import java.util.Objects;
+-import parking.pricing.OccupancySource;
+-import parking.store.ParkingException;
+-import static parking.store.ParkingException.Reason.INVALID_INPUT;
+-
+-/** Assignment 5 BEFORE: all tariff variants are coupled to one switch. */
++import parking.pricing.*;
++/** Pricing context; no conditional dispatch on concrete strategy types. */
+ public final class PricingPolicy {
+     public static final int HOURLY_RATE = 500;
+-    private final String mode;
+-    private final OccupancySource source;
+-    public PricingPolicy() { this("hourly", () -> 0.0); }
+-    public PricingPolicy(String mode, OccupancySource source) {
+-        this.mode = Objects.requireNonNull(mode); this.source = Objects.requireNonNull(source);
+-    }
+-    public int amountFor(int hours) {
+-        if (hours < 1 || hours > 24) throw new ParkingException(INVALID_INPUT, "Parking duration must be 1-24 whole hours");
+-        return switch (mode) {
+-            case "hourly" -> hours * HOURLY_RATE;
+-            case "capped" -> Math.min(hours * HOURLY_RATE, 3000);
+-            case "demand" -> hours * HOURLY_RATE + (int) Math.ceil(source.occupancy() * 250) * Math.max(0, hours - 2);
+-            default -> throw new IllegalArgumentException("Unknown pricing mode: " + mode);
+-        };
+-    }
++    private PricingStrategy strategy;
++    public PricingPolicy() { this(new HourlyPricing()); }
++    public PricingPolicy(PricingStrategy strategy) { setStrategy(strategy); }
++    /** Compatibility entry point retained for the unchanged before/after tests. */
++    public PricingPolicy(String mode, OccupancySource source) { this(new PricingSelector(source).manual(mode)); }
++    public void setStrategy(PricingStrategy strategy) { this.strategy = Objects.requireNonNull(strategy); }
++    public int amountFor(int hours) { return strategy.amountFor(hours); }
+ }
+diff --git a/src/main/java/parking/pricing/CappedPricing.java b/src/main/java/parking/pricing/CappedPricing.java
+new file mode 100644
+index 0000000..982d454
+--- /dev/null
++++ b/src/main/java/parking/pricing/CappedPricing.java
+@@ -0,0 +1,4 @@
++package parking.pricing;
++public final class CappedPricing implements PricingStrategy {
++    @Override public int amountFor(int hours) { return Math.min(DurationRules.requireValid(hours) * 500, 3000); }
++}
+diff --git a/src/main/java/parking/pricing/DemandPricing.java b/src/main/java/parking/pricing/DemandPricing.java
+new file mode 100644
+index 0000000..6357a56
+--- /dev/null
++++ b/src/main/java/parking/pricing/DemandPricing.java
+@@ -0,0 +1,14 @@
++package parking.pricing;
++import java.util.Objects;
++public final class DemandPricing implements PricingStrategy {
++    private final OccupancySource source;
++    public DemandPricing(OccupancySource source) { this.source = Objects.requireNonNull(source); }
++    @Override public int amountFor(int hours) {
++        DurationRules.requireValid(hours);
++        double occupancy = source.occupancy();
++        if (!Double.isFinite(occupancy) || occupancy < 0 || occupancy > 1)
++            throw new IllegalArgumentException("Sensor occupancy must be between zero and one");
++        // First two hours have no surcharge; later hours respond to live sensor data.
++        return hours * 500 + (int) Math.ceil(occupancy * 250) * Math.max(0, hours - 2);
++    }
++}
+diff --git a/src/main/java/parking/pricing/DurationRules.java b/src/main/java/parking/pricing/DurationRules.java
+new file mode 100644
+index 0000000..f1c9543
+--- /dev/null
++++ b/src/main/java/parking/pricing/DurationRules.java
+@@ -0,0 +1,10 @@
++package parking.pricing;
++import parking.store.ParkingException;
++public final class DurationRules {
++    private DurationRules() {}
++    public static int requireValid(int hours) {
++        if (hours < 1 || hours > 24)
++            throw new ParkingException(ParkingException.Reason.INVALID_INPUT, "Parking duration must be 1-24 whole hours");
++        return hours;
++    }
++}
+diff --git a/src/main/java/parking/pricing/HourlyPricing.java b/src/main/java/parking/pricing/HourlyPricing.java
+new file mode 100644
+index 0000000..2ace8aa
+--- /dev/null
++++ b/src/main/java/parking/pricing/HourlyPricing.java
+@@ -0,0 +1,4 @@
++package parking.pricing;
++public final class HourlyPricing implements PricingStrategy {
++    @Override public int amountFor(int hours) { return DurationRules.requireValid(hours) * 500; }
++}
+diff --git a/src/main/java/parking/pricing/PricingSelector.java b/src/main/java/parking/pricing/PricingSelector.java
+new file mode 100644
+index 0000000..9dec17f
+--- /dev/null
++++ b/src/main/java/parking/pricing/PricingSelector.java
+@@ -0,0 +1,28 @@
++package parking.pricing;
++import java.util.Objects;
++/** Selection is isolated from the context. Automatic rules have explicit priority. */
++public final class PricingSelector {
++    private final OccupancySource source;
++    private String mode = "hourly";
++    public PricingSelector(OccupancySource source) { this.source = Objects.requireNonNull(source); }
++    public void setMode(String mode) {
++        if (!"auto".equals(mode)) manual(mode); // Validate without changing current configuration.
++        this.mode = mode;
++    }
++    public String mode() { return mode; }
++    public PricingStrategy manual(String mode) {
++        return switch (mode) {
++            case "hourly" -> new HourlyPricing();
++            case "capped" -> new CappedPricing();
++            case "demand" -> new DemandPricing(source);
++            default -> throw new IllegalArgumentException("Use hourly, capped, demand or auto");
++        };
++    }
++    public PricingStrategy select(PricingSituation situation) {
++        if (!"auto".equals(mode)) return manual(mode);
++        if (situation.hours() >= 6) return new CappedPricing();
++        if (situation.localHour() < 6 || situation.localHour() >= 22) return new CappedPricing();
++        if (source.occupancy() >= 0.8) return new DemandPricing(source);
++        return new HourlyPricing();
++    }
++}
+diff --git a/src/main/java/parking/pricing/PricingSituation.java b/src/main/java/parking/pricing/PricingSituation.java
+new file mode 100644
+index 0000000..722bbb5
+--- /dev/null
++++ b/src/main/java/parking/pricing/PricingSituation.java
+@@ -0,0 +1,7 @@
++package parking.pricing;
++public record PricingSituation(int hours, int localHour) {
++    public PricingSituation {
++        DurationRules.requireValid(hours);
++        if (localHour < 0 || localHour > 23) throw new IllegalArgumentException("Hour must be 0-23");
++    }
++}
+diff --git a/src/main/java/parking/pricing/PricingStrategy.java b/src/main/java/parking/pricing/PricingStrategy.java
+new file mode 100644
+index 0000000..14c77e7
+--- /dev/null
++++ b/src/main/java/parking/pricing/PricingStrategy.java
+@@ -0,0 +1,3 @@
++package parking.pricing;
++@FunctionalInterface
++public interface PricingStrategy { int amountFor(int hours); }
+diff --git a/src/main/java/parking/space/ReservationManager.java b/src/main/java/parking/space/ReservationManager.java
+index 6b1d923..bd5b6cc 100644
+--- a/src/main/java/parking/space/ReservationManager.java
++++ b/src/main/java/parking/space/ReservationManager.java
+@@ -16,7 +16,8 @@ public final class ReservationManager {
+             return old.get();
+         }
+         Set<Integer> occupied = repository.all().stream().filter(r -> r.status() == ParkingReservation.Status.RESERVED).map(ParkingReservation::space).collect(Collectors.toSet());
+-        int space = sensors.firstFree(occupied, repository.blockedSpaces(), repository.sensorsOnline());
++        Map<Integer, Long> uses = repository.all().stream().collect(Collectors.groupingBy(ParkingReservation::space, Collectors.counting()));
++        int space = sensors.firstFree(occupied, repository.blockedSpaces(), repository.sensorsOnline(), uses);
+         ParkingReservation reservation = new ParkingReservation(id, space, ParkingReservation.Status.NEW);
+         reservation.reserve(); repository.save(reservation); return reservation;
+     }
+diff --git a/src/main/java/parking/space/SpaceSensorGrid.java b/src/main/java/parking/space/SpaceSensorGrid.java
+index 6421bac..3ff88b9 100644
+--- a/src/main/java/parking/space/SpaceSensorGrid.java
++++ b/src/main/java/parking/space/SpaceSensorGrid.java
+@@ -1,17 +1,18 @@
+ package parking.space;
+-
+-import java.util.Set;
+-import parking.store.ParkingException;
+-import static parking.store.ParkingException.Reason.*;
+-
+-/** Pure decision logic based on independently supplied sensor and booking data. */
++import java.util.*;
++import parking.allocation.*;
++/** Allocation context; existing firstFree API remains compatible. */
+ public final class SpaceSensorGrid {
+     public static final int CAPACITY = 3;
++    private AllocationStrategy strategy;
++    public SpaceSensorGrid() { this(new FirstFreeAllocation()); }
++    public SpaceSensorGrid(AllocationStrategy strategy) { setStrategy(strategy); }
++    public void setStrategy(AllocationStrategy strategy) { this.strategy = Objects.requireNonNull(strategy); }
++    public int choose(SpaceAvailability spaces) { return strategy.choose(spaces); }
+     public int firstFree(Set<Integer> occupied, Set<Integer> blocked, boolean online) {
+-        if (!online) throw new ParkingException(SENSOR_OFFLINE, "Space sensors are offline");
+-        for (int space = 1; space <= CAPACITY; space++) {
+-            if (!occupied.contains(space) && !blocked.contains(space)) return space;
+-        }
+-        throw new ParkingException(NO_SPACE, "No space available: sensor grid reports a full garage");
++        return firstFree(occupied, blocked, online, Map.of());
++    }
++    public int firstFree(Set<Integer> occupied, Set<Integer> blocked, boolean online, Map<Integer, Long> uses) {
++        return choose(SpaceAvailability.from(occupied, blocked, online, uses));
+     }
+ }
+diff --git a/src/test/java/parking/strategy/StrategyTest.java b/src/test/java/parking/strategy/StrategyTest.java
+new file mode 100644
+index 0000000..d93c361
+--- /dev/null
++++ b/src/test/java/parking/strategy/StrategyTest.java
+@@ -0,0 +1,210 @@
++package parking.strategy;
++
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.api.io.TempDir;
++import org.junit.jupiter.params.ParameterizedTest;
++import org.junit.jupiter.params.provider.*;
++import java.nio.file.Path;
++import java.time.*;
++import java.util.*;
++import java.util.stream.Stream;
++import parking.allocation.*;
++import parking.app.GarageApplication;
++import parking.billing.*;
++import parking.facade.*;
++import parking.pricing.*;
++import parking.space.*;
++import parking.store.*;
++import static org.junit.jupiter.api.Assertions.*;
++import static parking.billing.PaymentTerminal.Card.*;
++
++class StrategyTest {
++    @TempDir Path directory;
++    private record FakeOccupancySource(double value) implements OccupancySource {
++        @Override public double occupancy() { return value; }
++    }
++    static Stream<PricingStrategy> prices() {
++        return Stream.of(new HourlyPricing(), new CappedPricing(), new DemandPricing(new FakeOccupancySource(0.8)));
++    }
++    static Stream<AllocationStrategy> allocations() {
++        return Stream.of(new FirstFreeAllocation(), new NearLiftAllocation(), new LeastUsedAllocation());
++    }
++    @ParameterizedTest @MethodSource("prices")
++    void everyPricingImplementationAcceptsAllDurationsAndRejectsBothBoundaries(PricingStrategy strategy) {
++        for (int hours=1; hours<=24; hours++) assertTrue(strategy.amountFor(hours)>=0);
++        assertThrows(ParkingException.class, () -> strategy.amountFor(0));
++        assertThrows(ParkingException.class, () -> strategy.amountFor(25));
++    }
++    @Test void hourlyIsLinear() { assertEquals(4000, new HourlyPricing().amountFor(8)); }
++    @Test void capIsNonlinearAfterSixHours() {
++        CappedPricing capped = new CappedPricing();
++        assertEquals(2500, capped.amountFor(5)); assertEquals(3000,capped.amountFor(6)); assertEquals(3000,capped.amountFor(24));
++    }
++    @Test void demandUsesFixedFakeSensorWithGracePeriodAndRounding() {
++        DemandPricing demand = new DemandPricing(new FakeOccupancySource(0.801));
++        assertEquals(1000, demand.amountFor(2)); assertEquals(1701, demand.amountFor(3));
++        assertEquals(5200, new DemandPricing(new FakeOccupancySource(0.8)).amountFor(8));
++    }
++    @ParameterizedTest @ValueSource(doubles={-0.1,1.1,Double.NaN,Double.POSITIVE_INFINITY})
++    void sensorBoundaryRejectsInvalidReadings(double value) {
++        assertThrows(IllegalArgumentException.class, () -> new SimulatedOccupancySource(value));
++        assertThrows(IllegalArgumentException.class, () -> new DemandPricing(new FakeOccupancySource(value)).amountFor(3));
++    }
++    @Test void simulatedSourceUpdatesWithoutReplacingAlgorithm() {
++        SimulatedOccupancySource source = new SimulatedOccupancySource(0);
++        DemandPricing demand = new DemandPricing(source);
++        assertEquals(4000,demand.amountFor(8)); source.setOccupancy(1); assertEquals(5500,demand.amountFor(8));
++    }
++    @ParameterizedTest @CsvSource({
++        "6,12,1,capped", "24,23,1,capped", "5,22,1,capped", "5,23,1,capped", "5,0,1,capped", "5,5,1,capped",
++        "5,6,0.8,demand", "5,21,0.8,demand", "3,12,1,demand", "3,12,0.799,hourly", "1,6,0,hourly"})
++    void everyAutomaticPricingRuleAndBoundary(int hours,int hour,double occupancy,String expected) {
++        PricingSelector selector = new PricingSelector(new FakeOccupancySource(occupancy)); selector.setMode("auto");
++        assertEquals(selector.manual(expected).getClass(),selector.select(new PricingSituation(hours,hour)).getClass());
++    }
++    @ParameterizedTest @ValueSource(strings={"hourly","capped","demand"})
++    void eachManualPricingChoiceOverridesAutomaticRules(String mode) {
++        PricingSelector selector=new PricingSelector(new FakeOccupancySource(1)); selector.setMode(mode);
++        assertEquals(selector.manual(mode).getClass(),selector.select(new PricingSituation(24,23)).getClass());
++    }
++    @Test void pricingContextSwitchesAndAcceptsAnUnregisteredExtension() {
++        PricingPolicy context=new PricingPolicy(new HourlyPricing()); assertEquals(4000,context.amountFor(8));
++        context.setStrategy(new CappedPricing()); assertEquals(3000,context.amountFor(8));
++        context.setStrategy(hours -> 42); assertEquals(42,context.amountFor(8));
++        assertThrows(NullPointerException.class, () -> context.setStrategy(null));
++    }
++    private SpaceAvailability sample() { return new SpaceAvailability(List.of(3,1,2),Map.of(1,5L,2,2L,3,0L)); }
++    @Test void firstFreeUsesSmallestIdRatherThanInputOrder() { assertEquals(1,new FirstFreeAllocation().choose(sample())); }
++    @Test void nearLiftUsesDistanceThenSmallerId() {
++        NearLiftAllocation strategy=new NearLiftAllocation(); assertEquals(2,strategy.choose(sample()));
++        assertEquals(1,strategy.choose(new SpaceAvailability(List.of(3,1),Map.of())));
++        assertEquals(3,strategy.choose(new SpaceAvailability(List.of(3),Map.of())));
++    }
++    @Test void leastUsedUsesHistoryThenSmallerIdWithZeroForMissingHistory() {
++        LeastUsedAllocation strategy=new LeastUsedAllocation(); assertEquals(3,strategy.choose(sample()));
++        assertEquals(1,strategy.choose(new SpaceAvailability(List.of(3,1),Map.of(1,2L,3,2L))));
++        assertEquals(2,strategy.choose(new SpaceAvailability(List.of(1,2),Map.of(1,5L))));
++    }
++    @ParameterizedTest @MethodSource("allocations")
++    void everyAllocationReturnsOnlyFreeUnblockedBayAndRejectsOfflineAndFull(AllocationStrategy strategy) {
++        SpaceSensorGrid context=new SpaceSensorGrid(strategy);
++        assertEquals(3,context.firstFree(Set.of(1),Set.of(2),true));
++        assertEquals(ParkingException.Reason.SENSOR_OFFLINE,assertThrows(ParkingException.class,
++            () -> context.firstFree(Set.of(),Set.of(),false)).reason());
++        assertEquals(ParkingException.Reason.NO_SPACE,assertThrows(ParkingException.class,
++            () -> context.firstFree(Set.of(1,2,3),Set.of(),true)).reason());
++        for(int mask=0;mask<7;mask++) {
++            Set<Integer> occupied=new HashSet<>(); for(int n=1;n<=3;n++) if((mask & (1 << (n-1))) != 0) occupied.add(n);
++            assertFalse(occupied.contains(context.firstFree(occupied,Set.of(),true)));
++        }
++    }
++    @ParameterizedTest @CsvSource({"true,7,lift","true,8,lift","true,17,lift","true,18,lift",
++        "false,0,first","false,7,first","false,8,balanced","false,17,balanced","false,18,first","false,23,first"})
++    void everyAutomaticAllocationRuleAndBoundary(boolean lift,int hour,String expected) {
++        AllocationSelector selector=new AllocationSelector(); selector.setMode("auto");
++        assertEquals(selector.manual(expected).getClass(),selector.select(new AllocationSituation(lift,hour)).getClass());
++    }
++    @ParameterizedTest @ValueSource(strings={"first","lift","balanced"})
++    void manualAllocationChoiceOverridesSituation(String mode) {
++        AllocationSelector selector=new AllocationSelector(); selector.setMode(mode);
++        assertEquals(selector.manual(mode).getClass(),selector.select(new AllocationSituation(true,12)).getClass());
++    }
++    @Test void allocationContextSwitchesAndAcceptsAnUnregisteredExtension() {
++        SpaceSensorGrid context=new SpaceSensorGrid(); assertEquals(1,context.choose(sample()));
++        context.setStrategy(new NearLiftAllocation()); assertEquals(2,context.choose(sample()));
++        context.setStrategy(new LeastUsedAllocation()); assertEquals(3,context.choose(sample()));
++        context.setStrategy(input -> input.freeSpaces().get(0)); assertEquals(3,context.choose(sample()));
++        assertThrows(NullPointerException.class, () -> context.setStrategy(null));
++    }
++    @Test void snapshotIsImmutableAndRejectsInvalidInputs() {
++        List<Integer> bays=new ArrayList<>(List.of(1)); Map<Integer,Long> uses=new HashMap<>();
++        SpaceAvailability snapshot=new SpaceAvailability(bays,uses); bays.clear(); uses.put(1,99L);
++        assertEquals(List.of(1),snapshot.freeSpaces()); assertTrue(snapshot.previousUses().isEmpty());
++        assertThrows(UnsupportedOperationException.class, () -> snapshot.freeSpaces().clear());
++        assertThrows(IllegalArgumentException.class, () -> new SpaceAvailability(List.of(0),Map.of()));
++        assertThrows(IllegalArgumentException.class, () -> new SpaceAvailability(List.of(1),Map.of(1,-1L)));
++    }
++    @Test void selectorsValidateModesAndSituationsWithoutLosingConfiguration() {
++        PricingSelector price=new PricingSelector(() -> 0); price.setMode("capped");
++        assertThrows(IllegalArgumentException.class, () -> price.setMode("unknown")); assertEquals("capped",price.mode());
++        AllocationSelector space=new AllocationSelector(); space.setMode("lift");
++        assertThrows(IllegalArgumentException.class, () -> space.setMode("unknown")); assertEquals("lift",space.mode());
++        for(int h:List.of(-1,24)) {
++            assertThrows(IllegalArgumentException.class, () -> new PricingSituation(1,h));
++            assertThrows(IllegalArgumentException.class, () -> new AllocationSituation(false,h));
++        }
++        assertThrows(ParkingException.class, () -> new PricingSituation(0,12));
++    }
++    @Test void leastUsedReadsPersistedReleasedReservationHistory() {
++        CsvStore store=new CsvStore(directory); SpaceRepository repository=new SpaceRepository(store);
++        ReservationManager manager=new ReservationManager(repository,new SpaceSensorGrid(new LeastUsedAllocation()));
++        assertEquals(1,manager.reserve("old").space()); manager.release("old");
++        assertEquals(2,new ReservationManager(new SpaceRepository(store),new SpaceSensorGrid(new LeastUsedAllocation())).reserve("new").space());
++    }
++    @Test void actualFacadeUsesConfiguredStrategiesThenSwitchesBackAtRuntime() {
++        Clock clock=Clock.fixed(Instant.parse("2026-10-20T07:00:00Z"),ZoneOffset.UTC);
++        try(GarageApplication app=new GarageApplication(directory,clock)) {
++            app.configureStrategies("capped","lift",0.8,true); app.prepareStrategies(8);
++            Workflow first=app.parking().park("STRAT01",8,APPROVE);
++            assertEquals(Workflow.Status.COMPLETED,first.status());
++            assertEquals(3000,app.admin().inspect(first.id()).amount()); assertEquals(2,app.admin().inspect(first.id()).space());
++            app.admin().cancel(first.id());
++            app.configureStrategies("hourly","first",0,false); app.prepareStrategies(8);
++            Workflow second=app.parking().park("STRAT02",8,APPROVE);
++            assertEquals(4000,app.admin().inspect(second.id()).amount()); assertEquals(1,app.admin().inspect(second.id()).space());
++        }
++    }
++    @Test void automaticSelectionReevaluatesActualDurationForEachNewRequest() {
++        Clock clock=Clock.fixed(Instant.parse("2026-10-20T07:00:00Z"),ZoneOffset.UTC);
++        try(GarageApplication app=new GarageApplication(directory,clock)) {
++            app.configureStrategies("auto","auto",1,true); app.prepareStrategies(3);
++            Workflow first=app.parking().park("AUTO01",3,APPROVE);
++            assertEquals(1750,app.admin().inspect(first.id()).amount()); assertEquals(2,app.admin().inspect(first.id()).space());
++            app.admin().cancel(first.id()); app.prepareStrategies(8);
++            Workflow second=app.parking().park("AUTO02",8,APPROVE);
++            assertEquals(3000,app.admin().inspect(second.id()).amount());
++        }
++    }
++    @ParameterizedTest @CsvSource({"hourly,first","capped,lift","demand,balanced"})
++    void bothFacadeCompensationDepthsSurviveStrategies(String price,String allocation) {
++        try(GarageApplication app=new GarageApplication(directory,Clock.systemUTC())) {
++            app.configureStrategies(price,allocation,0.8,true); app.prepareStrategies(8);
++            app.admin().simulateFullGarage(true);
++            Workflow b=app.parking().park("BSTRAT01",8,APPROVE);
++            assertEquals(List.of("A committed","A revoked"),app.admin().inspect(b.id()).events());
++            app.admin().simulateFullGarage(false);
++            Workflow c=app.parking().park("CSTRAT01",8,DECLINE);
++            assertEquals(List.of("A committed","B committed","B released","A revoked"),app.admin().inspect(c.id()).events());
++        }
++    }
++    @Test void priceQuoteSurvivesChangedStrategyAndRestartAfterBillingSaveFailure() {
++        CsvStore disk=new CsvStore(directory);
++        RowStore failing=new RowStore() {
++            public List<String[]> read(String table) { return disk.read(table); }
++            public void write(String table,List<String[]> rows) {
++                if(table.equals("billing")) throw new StorageException("Simulated billing write failure",new java.io.IOException());
++                disk.write(table,rows);
++            }
++        };
++        PaymentTerminal first=new PaymentTerminal(new BillingRepository(failing),new PricingPolicy(new CappedPricing()),new OverstayAlert(),Clock.systemUTC());
++        assertThrows(StorageException.class, () -> first.confirm("retry",8,APPROVE));
++        PaymentTerminal restarted=new PaymentTerminal(new BillingRepository(disk),new PricingPolicy(new DemandPricing(() -> 1)),new OverstayAlert(),Clock.systemUTC());
++        assertEquals(3000,restarted.confirm("retry",8,APPROVE).amount());
++        assertEquals(3000,restarted.confirm("retry",8,APPROVE).amount());
++        assertThrows(ParkingException.class, () -> restarted.confirm("retry",9,APPROVE));
++    }
++    @Test void completedPaymentCanBeResumedAfterRuntimeTariffChange() {
++        CsvStore disk=new CsvStore(directory); PricingPolicy price=new PricingPolicy(new DemandPricing(() -> 1));
++        PaymentTerminal billing=new PaymentTerminal(new BillingRepository(disk),price,new OverstayAlert(),Clock.systemUTC());
++        assertEquals(5500,billing.confirm("paid",8,APPROVE).amount()); price.setStrategy(new CappedPricing());
++        assertEquals(5500,billing.confirm("paid",8,APPROVE).amount());
++    }
++    @Test void invalidLegacyRetryDoesNotPersistAnIncorrectQuote() {
++        CsvStore disk=new CsvStore(directory); BillingRepository repository=new BillingRepository(disk);
++        repository.save(new Payment("legacy",1000,Instant.parse("2026-10-20T12:00:00Z"),Payment.Status.PAID));
++        PaymentTerminal billing=new PaymentTerminal(repository,new PricingPolicy(new CappedPricing()),new OverstayAlert(),Clock.systemUTC());
++        assertThrows(ParkingException.class, () -> billing.confirm("legacy",3,APPROVE));
++        assertTrue(repository.findQuote("legacy").isEmpty());
++        assertEquals(1000,billing.confirm("legacy",2,APPROVE).amount());
++    }
++}
+-- 
+2.51.1
+

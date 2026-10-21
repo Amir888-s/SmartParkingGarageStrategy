@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AdminFacade.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">smart-parking-garage</a> &gt; <a href="index.source.html" class="el_package">parking.facade</a> &gt; <span class="el_source">AdminFacade.java</span></div><h1>AdminFacade.java</h1><pre class="source lang-java linenums">package parking.facade;
+
+import java.util.*;
+import parking.gate.*;
+import parking.space.*;
+import parking.billing.*;
+
+/** Narrow operational interface: inspection, sensor controls and manual rollback. */
+public final class AdminFacade {
+<span class="fc" id="L10">    public record Snapshot(String id, Workflow.Status workflow, String plate, String gate,</span>
+            String reservation, int space, String payment, int amount, String dueAt, String failure, List&lt;String&gt; events) {}
+    private final GateController gate;
+    private final ReservationManager spaces;
+    private final PaymentTerminal billing;
+    private final WorkflowRepository workflows;
+    private final ParkingFacade parking;
+<span class="fc" id="L17">    public AdminFacade(GateController gate, ReservationManager spaces, PaymentTerminal billing, WorkflowRepository workflows, ParkingFacade parking) {</span>
+<span class="fc" id="L18">        this.gate = gate; this.spaces = spaces; this.billing = billing; this.workflows = workflows; this.parking = parking;</span>
+<span class="fc" id="L19">    }</span>
+    public Snapshot inspect(String id) {
+<span class="fc" id="L21">        Workflow workflow = workflows.get(id);</span>
+<span class="fc" id="L22">        Optional&lt;GatePermit&gt; permit = gate.find(id);</span>
+<span class="fc" id="L23">        Optional&lt;ParkingReservation&gt; reservation = spaces.find(id);</span>
+<span class="fc" id="L24">        Optional&lt;Payment&gt; payment = billing.find(id);</span>
+<span class="fc" id="L25">        return new Snapshot(id, workflow.status(), workflow.plate(), permit.map(p -&gt; p.status().name()).orElse(&quot;NONE&quot;),</span>
+<span class="fc" id="L26">            reservation.map(r -&gt; r.status().name()).orElse(&quot;NONE&quot;), reservation.map(ParkingReservation::space).orElse(0),</span>
+<span class="fc" id="L27">            payment.map(p -&gt; p.status().name()).orElse(&quot;NONE&quot;), payment.map(Payment::amount).orElse(0),</span>
+<span class="fc" id="L28">            payment.map(p -&gt; p.dueAt().toString()).orElse(&quot;&quot;), workflow.failure(), workflow.events());</span>
+    }
+<span class="fc" id="L30">    public List&lt;Snapshot&gt; inspectAll() { return workflows.all().stream().map(w -&gt; inspect(w.id())).toList(); }</span>
+<span class="fc" id="L31">    public Workflow cancel(String id) { return parking.compensate(id, &quot;Administrator cancelled the parking operation&quot;); }</span>
+    public List&lt;Workflow&gt; recoverPending() {
+<span class="fc bfc" id="L33" title="All 4 branches covered.">        return workflows.all().stream().filter(w -&gt; w.status() == Workflow.Status.PENDING_A || w.status() == Workflow.Status.PENDING_B ||</span>
+<span class="fc bfc" id="L34" title="All 4 branches covered.">            w.status() == Workflow.Status.PENDING_C || w.status() == Workflow.Status.COMPENSATING).map(w -&gt; parking.resume(w.id())).toList();</span>
+    }
+<span class="fc bfc" id="L36" title="All 2 branches covered.">    public void simulateFullGarage(boolean full) { spaces.setBlockedSpaces(full ? Set.of(1, 2, 3) : Set.of()); }</span>
+<span class="fc" id="L37">    public void setSensorsOnline(boolean online) { spaces.setSensorsOnline(online); }</span>
+<span class="fc" id="L38">    public void setGateOpen(boolean open) { gate.setOpen(open); }</span>
+<span class="fc" id="L39">    public List&lt;String&gt; overdueIds() { return billing.overdueIds(); }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

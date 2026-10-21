@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WorkflowRepository.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">smart-parking-garage</a> &gt; <a href="index.source.html" class="el_package">parking.facade</a> &gt; <span class="el_source">WorkflowRepository.java</span></div><h1>WorkflowRepository.java</h1><pre class="source lang-java linenums">package parking.facade;
+
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import parking.billing.PaymentTerminal.Card;
+import parking.store.RowStore;
+import parking.store.ParkingException;
+import static parking.store.ParkingException.Reason.UNKNOWN_WORKFLOW;
+
+public final class WorkflowRepository {
+    private final RowStore store;
+<span class="fc" id="L12">    public WorkflowRepository(RowStore store) { this.store = store; }</span>
+    public List&lt;Workflow&gt; all() {
+<span class="fc" id="L14">        return store.read(&quot;workflow&quot;).stream().map(r -&gt; new Workflow(r[0], decode(r[1]), Integer.parseInt(r[2]),</span>
+<span class="fc" id="L15">            Card.valueOf(r[3]), Workflow.Status.valueOf(r[4]), decode(r[5]),</span>
+<span class="fc bfc" id="L16" title="All 2 branches covered.">            decode(r[6]).isEmpty() ? List.of() : List.of(decode(r[6]).split(&quot;;&quot;)))).toList();</span>
+    }
+    public Workflow get(String id) {
+<span class="fc" id="L19">        return all().stream().filter(w -&gt; w.id().equals(id)).findFirst().orElseThrow(() -&gt; new ParkingException(UNKNOWN_WORKFLOW, &quot;Unknown workflow &quot; + id));</span>
+    }
+    public void save(Workflow workflow) {
+<span class="fc" id="L22">        List&lt;Workflow&gt; workflows = new ArrayList&lt;&gt;(all());</span>
+<span class="fc" id="L23">        workflows.removeIf(w -&gt; w.id().equals(workflow.id())); workflows.add(workflow);</span>
+<span class="fc" id="L24">        store.write(&quot;workflow&quot;, workflows.stream().map(w -&gt; new String[]{w.id(), encode(w.plate()), String.valueOf(w.hours()),</span>
+<span class="fc" id="L25">            w.card().name(), w.status().name(), encode(w.failure()), encode(String.join(&quot;;&quot;, w.events()))}).toList());</span>
+<span class="fc" id="L26">    }</span>
+<span class="fc" id="L27">    private static String encode(String value) { return Base64.getEncoder().encodeToString(value.getBytes(StandardCharsets.UTF_8)); }</span>
+<span class="fc" id="L28">    private static String decode(String value) { return new String(Base64.getDecoder().decode(value), StandardCharsets.UTF_8); }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

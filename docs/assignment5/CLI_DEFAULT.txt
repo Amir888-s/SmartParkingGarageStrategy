@@ -1,0 +1,36 @@
+Smart Parking Garage | persisted store: <temporary store>
+Pending work is retained. Inspect with 2, recover explicitly with 9.
+
+1 Park  2 Inspect all  3 Full garage (B failure)  4 Declined payment (C failure)
+5 Pause after A  6 Pause after B  7 Resume ID  8 Cancel ID  9 Recover pending
+10 Close/open gate  11 Sensors online/offline  12 Overstay alerts  0 Exit
+13 Strategy demonstration  14 Configure strategies
+Choice: License plate (example 123ABC01): Whole hours (1-24): ID: 0296b70b-ecad-4557-ad6b-59ee3777be90 | workflow=COMPLETED | plate=123ABC01
+A gate=AUTHORIZED | B reservation=RESERVED space=1 | C payment=PAID amount=1000 KZT
+Overstay due at (UTC): 2026-10-20T12:07:02.017456803Z
+Persisted events: A committed -> B committed -> C committed
+
+1 Park  2 Inspect all  3 Full garage (B failure)  4 Declined payment (C failure)
+5 Pause after A  6 Pause after B  7 Resume ID  8 Cancel ID  9 Recover pending
+10 Close/open gate  11 Sensors online/offline  12 Overstay alerts  0 Exit
+13 Strategy demonstration  14 Configure strategies
+Choice: License plate (example 123ABC01): Whole hours (1-24): ID: ed1782da-51e7-4a32-a916-d5dbf76129fc | workflow=COMPENSATED | plate=BFAIL01
+A gate=REVOKED | B reservation=NONE space=0 | C payment=NONE amount=0 KZT
+Reason: No space available: sensor grid reports a full garage
+Persisted events: A committed -> A revoked
+
+1 Park  2 Inspect all  3 Full garage (B failure)  4 Declined payment (C failure)
+5 Pause after A  6 Pause after B  7 Resume ID  8 Cancel ID  9 Recover pending
+10 Close/open gate  11 Sensors online/offline  12 Overstay alerts  0 Exit
+13 Strategy demonstration  14 Configure strategies
+Choice: License plate (example 123ABC01): Whole hours (1-24): ID: 59c8ecbf-135e-4d02-8862-3629c3419219 | workflow=COMPENSATED | plate=CFAIL01
+A gate=REVOKED | B reservation=RELEASED space=2 | C payment=DECLINED amount=500 KZT
+Overstay due at (UTC): 2026-10-20T11:07:02.106146543Z
+Reason: Payment terminal declined the card
+Persisted events: A committed -> B committed -> B released -> A revoked
+
+1 Park  2 Inspect all  3 Full garage (B failure)  4 Declined payment (C failure)
+5 Pause after A  6 Pause after B  7 Resume ID  8 Cancel ID  9 Recover pending
+10 Close/open gate  11 Sensors online/offline  12 Overstay alerts  0 Exit
+13 Strategy demonstration  14 Configure strategies
+Choice: 

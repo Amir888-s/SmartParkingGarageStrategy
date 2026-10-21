@@ -1,0 +1,17 @@
+Smart Parking Garage | persisted store: <temporary store>
+Pending work is retained. Inspect with 2, recover explicitly with 9.
+
+1 Park  2 Inspect all  3 Full garage (B failure)  4 Declined payment (C failure)
+5 Pause after A  6 Pause after B  7 Resume ID  8 Cancel ID  9 Recover pending
+10 Close/open gate  11 Sensors online/offline  12 Overstay alerts  0 Exit
+13 Strategy demonstration  14 Configure strategies
+Choice: ID: f39bd8fe-60bf-401a-b812-7fcc1ab521f7 | workflow=COMPLETED | plate=STRAT01
+A gate=AUTHORIZED | B reservation=RESERVED space=2 | C payment=PAID amount=3000 KZT
+Overstay due at (UTC): 2026-10-20T18:07:02.334493583Z
+Persisted events: A committed -> B committed -> C committed
+
+1 Park  2 Inspect all  3 Full garage (B failure)  4 Declined payment (C failure)
+5 Pause after A  6 Pause after B  7 Resume ID  8 Cancel ID  9 Recover pending
+10 Close/open gate  11 Sensors online/offline  12 Overstay alerts  0 Exit
+13 Strategy demonstration  14 Configure strategies
+Choice: 

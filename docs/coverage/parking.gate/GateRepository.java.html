@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GateRepository.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">smart-parking-garage</a> &gt; <a href="index.source.html" class="el_package">parking.gate</a> &gt; <span class="el_source">GateRepository.java</span></div><h1>GateRepository.java</h1><pre class="source lang-java linenums">package parking.gate;
+
+import java.util.*;
+import parking.store.RowStore;
+
+public final class GateRepository {
+    private final RowStore store;
+<span class="fc" id="L8">    public GateRepository(RowStore store) { this.store = store; }</span>
+    public List&lt;GatePermit&gt; all() {
+<span class="fc" id="L10">        return store.read(&quot;gate&quot;).stream().map(r -&gt; new GatePermit(r[0], r[1], GatePermit.Status.valueOf(r[2]))).toList();</span>
+    }
+<span class="fc" id="L12">    public Optional&lt;GatePermit&gt; find(String id) { return all().stream().filter(p -&gt; p.id().equals(id)).findFirst(); }</span>
+    public void save(GatePermit permit) {
+<span class="fc" id="L14">        List&lt;GatePermit&gt; permits = new ArrayList&lt;&gt;(all());</span>
+<span class="fc" id="L15">        permits.removeIf(p -&gt; p.id().equals(permit.id())); permits.add(permit);</span>
+<span class="fc" id="L16">        store.write(&quot;gate&quot;, permits.stream().map(p -&gt; new String[]{p.id(), p.plate(), p.status().name()}).toList());</span>
+<span class="fc" id="L17">    }</span>
+    public boolean isOpen() {
+<span class="fc" id="L19">        return store.read(&quot;gate_settings&quot;).stream().findFirst().map(r -&gt; Boolean.parseBoolean(r[0])).orElse(true);</span>
+    }
+<span class="fc" id="L21">    public void setOpen(boolean open) { store.write(&quot;gate_settings&quot;, Collections.singletonList(new String[]{String.valueOf(open)})); }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

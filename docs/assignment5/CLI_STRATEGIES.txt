@@ -1,0 +1,45 @@
+Smart Parking Garage | persisted store: <temporary store>
+Pending work is retained. Inspect with 2, recover explicitly with 9.
+
+1 Park  2 Inspect all  3 Full garage (B failure)  4 Declined payment (C failure)
+5 Pause after A  6 Pause after B  7 Resume ID  8 Cancel ID  9 Recover pending
+10 Close/open gate  11 Sensors online/offline  12 Overstay alerts  0 Exit
+13 Strategy demonstration  14 Configure strategies
+Choice: PRICING: identical input = 8 hours, occupancy 0.8
+Runtime switch -> hourly: 4000 KZT
+Runtime switch -> capped: 3000 KZT
+Runtime switch -> demand: 5200 KZT
+Automatic PricingSituation[hours=8, localHour=12] -> CappedPricing: 3000
+Automatic PricingSituation[hours=3, localHour=12] -> DemandPricing: 1700
+Automatic PricingSituation[hours=3, localHour=23] -> CappedPricing: 1500
+Manual override at peak -> hourly: 4000
+Same demand strategy, sensor replaced by new reading -> 4000
+ALLOCATION: identical free bays [1,2,3], previous uses {1=5,2=2,3=0}
+Runtime switch -> first: bay 1
+Runtime switch -> lift: bay 2
+Runtime switch -> balanced: bay 3
+Automatic AllocationSituation[preferLift=true, localHour=12] -> NearLiftAllocation: bay 2
+Automatic AllocationSituation[preferLift=false, localHour=12] -> LeastUsedAllocation: bay 3
+Automatic AllocationSituation[preferLift=false, localHour=23] -> FirstFreeAllocation: bay 1
+Manual override near lift -> first: bay 1
+
+1 Park  2 Inspect all  3 Full garage (B failure)  4 Declined payment (C failure)
+5 Pause after A  6 Pause after B  7 Resume ID  8 Cancel ID  9 Recover pending
+10 Close/open gate  11 Sensors online/offline  12 Overstay alerts  0 Exit
+13 Strategy demonstration  14 Configure strategies
+Choice: Pricing: hourly / capped / demand / auto: Allocation: first / lift / balanced / auto: Simulated occupancy fraction (0-1): Prefer a bay near the lift? true/false: Configured pricing=capped, allocation=lift. Applied to each new park request.
+
+1 Park  2 Inspect all  3 Full garage (B failure)  4 Declined payment (C failure)
+5 Pause after A  6 Pause after B  7 Resume ID  8 Cancel ID  9 Recover pending
+10 Close/open gate  11 Sensors online/offline  12 Overstay alerts  0 Exit
+13 Strategy demonstration  14 Configure strategies
+Choice: License plate (example 123ABC01): Whole hours (1-24): ID: f39bd8fe-60bf-401a-b812-7fcc1ab521f7 | workflow=COMPLETED | plate=STRAT01
+A gate=AUTHORIZED | B reservation=RESERVED space=2 | C payment=PAID amount=3000 KZT
+Overstay due at (UTC): 2026-10-20T18:07:02.334493583Z
+Persisted events: A committed -> B committed -> C committed
+
+1 Park  2 Inspect all  3 Full garage (B failure)  4 Declined payment (C failure)
+5 Pause after A  6 Pause after B  7 Resume ID  8 Cancel ID  9 Recover pending
+10 Close/open gate  11 Sensors online/offline  12 Overstay alerts  0 Exit
+13 Strategy demonstration  14 Configure strategies
+Choice: 

@@ -1,0 +1,17 @@
+PRICING: identical input = 8 hours, occupancy 0.8
+Runtime switch -> hourly: 4000 KZT
+Runtime switch -> capped: 3000 KZT
+Runtime switch -> demand: 5200 KZT
+Automatic PricingSituation[hours=8, localHour=12] -> CappedPricing: 3000
+Automatic PricingSituation[hours=3, localHour=12] -> DemandPricing: 1700
+Automatic PricingSituation[hours=3, localHour=23] -> CappedPricing: 1500
+Manual override at peak -> hourly: 4000
+Same demand strategy, sensor replaced by new reading -> 4000
+ALLOCATION: identical free bays [1,2,3], previous uses {1=5,2=2,3=0}
+Runtime switch -> first: bay 1
+Runtime switch -> lift: bay 2
+Runtime switch -> balanced: bay 3
+Automatic AllocationSituation[preferLift=true, localHour=12] -> NearLiftAllocation: bay 2
+Automatic AllocationSituation[preferLift=false, localHour=12] -> LeastUsedAllocation: bay 3
+Automatic AllocationSituation[preferLift=false, localHour=23] -> FirstFreeAllocation: bay 1
+Manual override near lift -> first: bay 1

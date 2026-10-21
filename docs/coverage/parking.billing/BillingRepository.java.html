@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BillingRepository.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">smart-parking-garage</a> &gt; <a href="index.source.html" class="el_package">parking.billing</a> &gt; <span class="el_source">BillingRepository.java</span></div><h1>BillingRepository.java</h1><pre class="source lang-java linenums">package parking.billing;
+
+import java.time.Instant;
+import java.util.*;
+import parking.store.RowStore;
+
+public final class BillingRepository {
+    private final RowStore store;
+<span class="fc" id="L9">    public BillingRepository(RowStore store) { this.store = store; }</span>
+    public List&lt;Payment&gt; all() {
+<span class="fc" id="L11">        return store.read(&quot;billing&quot;).stream().map(r -&gt; new Payment(r[0], Integer.parseInt(r[1]), Instant.parse(r[2]), Payment.Status.valueOf(r[3]))).toList();</span>
+    }
+<span class="fc" id="L13">    public Optional&lt;Payment&gt; find(String id) { return all().stream().filter(p -&gt; p.id().equals(id)).findFirst(); }</span>
+    public void save(Payment payment) {
+<span class="fc" id="L15">        List&lt;Payment&gt; payments = new ArrayList&lt;&gt;(all());</span>
+<span class="fc" id="L16">        payments.removeIf(p -&gt; p.id().equals(payment.id())); payments.add(payment);</span>
+<span class="fc" id="L17">        store.write(&quot;billing&quot;, payments.stream().map(p -&gt; new String[]{p.id(), String.valueOf(p.amount()), p.dueAt().toString(), p.status().name()}).toList());</span>
+<span class="fc" id="L18">    }</span>
+    public Optional&lt;PriceQuote&gt; findQuote(String id) {
+<span class="fc" id="L20">        return store.read(&quot;price_quotes&quot;).stream().filter(r -&gt; r[0].equals(id))</span>
+<span class="fc" id="L21">            .map(r -&gt; new PriceQuote(r[0], Integer.parseInt(r[1]), Integer.parseInt(r[2]))).findFirst();</span>
+    }
+    public void saveQuote(PriceQuote quote) {
+<span class="fc" id="L24">        List&lt;String[]&gt; rows = new ArrayList&lt;&gt;(store.read(&quot;price_quotes&quot;));</span>
+<span class="fc" id="L25">        rows.removeIf(r -&gt; r[0].equals(quote.id()));</span>
+<span class="fc" id="L26">        rows.add(new String[]{quote.id(), String.valueOf(quote.hours()), String.valueOf(quote.amount())});</span>
+<span class="fc" id="L27">        store.write(&quot;price_quotes&quot;, rows);</span>
+<span class="fc" id="L28">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

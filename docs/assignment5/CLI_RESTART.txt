@@ -1,0 +1,34 @@
+Smart Parking Garage | persisted store: <temporary store>
+Pending work is retained. Inspect with 2, recover explicitly with 9.
+
+1 Park  2 Inspect all  3 Full garage (B failure)  4 Declined payment (C failure)
+5 Pause after A  6 Pause after B  7 Resume ID  8 Cancel ID  9 Recover pending
+10 Close/open gate  11 Sensors online/offline  12 Overstay alerts  0 Exit
+13 Strategy demonstration  14 Configure strategies
+Choice: License plate (example 123ABC01): Whole hours (1-24): ID: e5275134-4f88-4e94-a02e-ad8e83af7c90 | workflow=PENDING_B | plate=RESTART01
+A gate=AUTHORIZED | B reservation=NONE space=0 | C payment=NONE amount=0 KZT
+Persisted events: A committed
+
+1 Park  2 Inspect all  3 Full garage (B failure)  4 Declined payment (C failure)
+5 Pause after A  6 Pause after B  7 Resume ID  8 Cancel ID  9 Recover pending
+10 Close/open gate  11 Sensors online/offline  12 Overstay alerts  0 Exit
+13 Strategy demonstration  14 Configure strategies
+Choice: 
+--- REOPEN ---
+Smart Parking Garage | persisted store: <temporary store>
+Pending work is retained. Inspect with 2, recover explicitly with 9.
+
+1 Park  2 Inspect all  3 Full garage (B failure)  4 Declined payment (C failure)
+5 Pause after A  6 Pause after B  7 Resume ID  8 Cancel ID  9 Recover pending
+10 Close/open gate  11 Sensors online/offline  12 Overstay alerts  0 Exit
+13 Strategy demonstration  14 Configure strategies
+Choice: Workflow ID: ID: e5275134-4f88-4e94-a02e-ad8e83af7c90 | workflow=COMPLETED | plate=RESTART01
+A gate=AUTHORIZED | B reservation=RESERVED space=1 | C payment=PAID amount=1000 KZT
+Overstay due at (UTC): 2026-10-20T12:07:03.006876233Z
+Persisted events: A committed -> B committed -> C committed
+
+1 Park  2 Inspect all  3 Full garage (B failure)  4 Declined payment (C failure)
+5 Pause after A  6 Pause after B  7 Resume ID  8 Cancel ID  9 Recover pending
+10 Close/open gate  11 Sensors online/offline  12 Overstay alerts  0 Exit
+13 Strategy demonstration  14 Configure strategies
+Choice: 

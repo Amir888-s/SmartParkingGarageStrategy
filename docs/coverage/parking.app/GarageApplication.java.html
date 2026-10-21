@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GarageApplication.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">smart-parking-garage</a> &gt; <a href="index.source.html" class="el_package">parking.app</a> &gt; <span class="el_source">GarageApplication.java</span></div><h1>GarageApplication.java</h1><pre class="source lang-java linenums">package parking.app;
+
+import java.nio.channels.*;
+import java.nio.file.*;
+import java.time.Clock;
+import java.io.IOException;
+import parking.store.*;
+import parking.gate.*;
+import parking.space.*;
+import parking.billing.*;
+import parking.facade.*;
+import parking.pricing.*;
+import parking.allocation.*;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+
+/** Composition root and single-writer lock; closes the lock on real restarts. */
+public final class GarageApplication implements AutoCloseable {
+    private final FileChannel lockChannel;
+    private final FileLock lock;
+    private final ParkingFacade parking;
+    private final AdminFacade admin;
+<span class="fc" id="L23">    private final PricingPolicy pricing = new PricingPolicy();</span>
+<span class="fc" id="L24">    private final SpaceSensorGrid sensors = new SpaceSensorGrid();</span>
+<span class="fc" id="L25">    private final SimulatedOccupancySource occupancy = new SimulatedOccupancySource(0.0);</span>
+<span class="fc" id="L26">    private final PricingSelector pricingSelector = new PricingSelector(occupancy);</span>
+<span class="fc" id="L27">    private final AllocationSelector allocationSelector = new AllocationSelector();</span>
+    private final Clock clock;
+<span class="fc" id="L29">    private final ZoneId zone = ZoneId.of(&quot;Asia/Almaty&quot;);</span>
+    private boolean preferLift;
+<span class="fc" id="L31">    public GarageApplication(Path directory, Clock clock) {</span>
+<span class="fc" id="L32">        this.clock = clock;</span>
+<span class="fc" id="L33">        CsvStore store = new CsvStore(directory);</span>
+        try {
+<span class="fc" id="L35">            lockChannel = FileChannel.open(directory.resolve(&quot;garage.lock&quot;), StandardOpenOption.CREATE, StandardOpenOption.WRITE);</span>
+            FileLock acquired;
+<span class="fc" id="L37">            try { acquired = lockChannel.tryLock(); }</span>
+<span class="fc" id="L38">            catch (OverlappingFileLockException e) { acquired = null; }</span>
+<span class="fc bfc" id="L39" title="All 2 branches covered.">            if (acquired == null) { lockChannel.close(); throw new IOException(&quot;Another garage process already owns this store&quot;); }</span>
+<span class="fc" id="L40">            lock = acquired;</span>
+<span class="fc" id="L41">        } catch (IOException e) { throw new StorageException(&quot;Cannot lock garage store&quot;, e); }</span>
+<span class="fc" id="L42">        GateController gate = new GateController(new GateRepository(store), new LicensePlateReader());</span>
+<span class="fc" id="L43">        ReservationManager spaces = new ReservationManager(new SpaceRepository(store), sensors);</span>
+<span class="fc" id="L44">        PaymentTerminal billing = new PaymentTerminal(new BillingRepository(store), pricing, new OverstayAlert(), clock);</span>
+<span class="fc" id="L45">        WorkflowRepository workflows = new WorkflowRepository(store);</span>
+<span class="fc" id="L46">        parking = new ParkingFacade(gate, spaces, billing, workflows);</span>
+<span class="fc" id="L47">        admin = new AdminFacade(gate, spaces, billing, workflows, parking);</span>
+<span class="fc" id="L48">    }</span>
+    /** Composition configuration only; the facade still owns every workflow step. */
+    public void configureStrategies(String pricingMode, String allocationMode, double sensorOccupancy, boolean preferLift) {
+        // Validate the complete request before mutating the live configuration.
+<span class="fc" id="L52">        PricingSelector checkPricing = new PricingSelector(occupancy); checkPricing.setMode(pricingMode);</span>
+<span class="fc" id="L53">        AllocationSelector checkAllocation = new AllocationSelector(); checkAllocation.setMode(allocationMode);</span>
+<span class="fc" id="L54">        new SimulatedOccupancySource(sensorOccupancy);</span>
+<span class="fc" id="L55">        pricingSelector.setMode(pricingMode); allocationSelector.setMode(allocationMode);</span>
+<span class="fc" id="L56">        occupancy.setOccupancy(sensorOccupancy); this.preferLift = preferLift;</span>
+<span class="fc" id="L57">    }</span>
+    /** Called for new requests; automatic rules use the actual requested duration. */
+    public void prepareStrategies(int hours) {
+<span class="fc" id="L60">        int hour = ZonedDateTime.now(clock.withZone(zone)).getHour();</span>
+<span class="fc" id="L61">        pricing.setStrategy(pricingSelector.select(new PricingSituation(hours, hour)));</span>
+<span class="fc" id="L62">        sensors.setStrategy(allocationSelector.select(new AllocationSituation(preferLift, hour)));</span>
+<span class="fc" id="L63">    }</span>
+<span class="nc" id="L64">    public String strategyModes() { return &quot;pricing=&quot; + pricingSelector.mode() + &quot;, allocation=&quot; + allocationSelector.mode(); }</span>
+<span class="fc" id="L65">    public ParkingFacade parking() { return parking; }</span>
+<span class="fc" id="L66">    public AdminFacade admin() { return admin; }</span>
+    @Override public void close() {
+<span class="fc" id="L68">        try { lock.release(); lockChannel.close(); }</span>
+<span class="pc" id="L69">        catch (IOException e) { throw new StorageException(&quot;Cannot close garage store&quot;, e); }</span>
+<span class="fc" id="L70">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

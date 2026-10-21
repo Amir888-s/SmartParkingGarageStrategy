@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Payment.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">smart-parking-garage</a> &gt; <a href="index.source.html" class="el_package">parking.billing</a> &gt; <span class="el_source">Payment.java</span></div><h1>Payment.java</h1><pre class="source lang-java linenums">package parking.billing;
+
+import java.time.Instant;
+import parking.store.ParkingException;
+import static parking.store.ParkingException.Reason.ILLEGAL_TRANSITION;
+
+public final class Payment {
+<span class="fc" id="L8">    public enum Status { NEW, PAID, DECLINED, REFUNDED, CANCELLED }</span>
+    private final String id;
+    private final int amount;
+    private final Instant dueAt;
+    private Status status;
+<span class="fc" id="L13">    public Payment(String id, int amount, Instant dueAt, Status status) { this.id = id; this.amount = amount; this.dueAt = dueAt; this.status = status; }</span>
+<span class="fc" id="L14">    public void pay() { transition(Status.NEW, Status.PAID); }</span>
+<span class="fc" id="L15">    public void decline() { transition(Status.NEW, Status.DECLINED); }</span>
+<span class="fc" id="L16">    public void refund() { transition(Status.PAID, Status.REFUNDED); }</span>
+<span class="fc" id="L17">    public void cancel() { transition(Status.NEW, Status.CANCELLED); }</span>
+    private void transition(Status from, Status to) {
+<span class="fc bfc" id="L19" title="All 2 branches covered.">        if (status != from) throw new ParkingException(ILLEGAL_TRANSITION, &quot;Payment cannot move from &quot; + status + &quot; to &quot; + to);</span>
+<span class="fc" id="L20">        status = to;</span>
+<span class="fc" id="L21">    }</span>
+<span class="fc" id="L22">    public String id() { return id; }</span>
+<span class="fc" id="L23">    public int amount() { return amount; }</span>
+<span class="fc" id="L24">    public Instant dueAt() { return dueAt; }</span>
+<span class="fc" id="L25">    public Status status() { return status; }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

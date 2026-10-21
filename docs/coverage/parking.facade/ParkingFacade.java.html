@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ParkingFacade.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">smart-parking-garage</a> &gt; <a href="index.source.html" class="el_package">parking.facade</a> &gt; <span class="el_source">ParkingFacade.java</span></div><h1>ParkingFacade.java</h1><pre class="source lang-java linenums">package parking.facade;
+
+import java.util.*;
+import parking.gate.*;
+import parking.space.*;
+import parking.billing.*;
+import parking.store.*;
+import static parking.store.ParkingException.Reason.INVALID_INPUT;
+import static parking.facade.Workflow.Status.*;
+
+/** Client-facing A -&gt; B -&gt; C workflow, with recoverable reverse compensation. */
+public final class ParkingFacade {
+<span class="fc" id="L13">    public enum Checkpoint { NONE, AFTER_A, AFTER_B }</span>
+    private final GateController gate;
+    private final ReservationManager spaces;
+    private final PaymentTerminal billing;
+    private final WorkflowRepository workflows;
+<span class="fc" id="L18">    public ParkingFacade(GateController gate, ReservationManager spaces, PaymentTerminal billing, WorkflowRepository workflows) {</span>
+<span class="fc" id="L19">        this.gate = gate; this.spaces = spaces; this.billing = billing; this.workflows = workflows;</span>
+<span class="fc" id="L20">    }</span>
+<span class="fc" id="L21">    public Workflow park(String plate, int hours, PaymentTerminal.Card card) { return begin(plate, hours, card, Checkpoint.NONE); }</span>
+    public Workflow begin(String plate, int hours, PaymentTerminal.Card card, Checkpoint checkpoint) {
+<span class="fc bfc" id="L23" title="All 8 branches covered.">        if (hours &lt; 1 || hours &gt; 24 || card == null || checkpoint == null)</span>
+<span class="fc" id="L24">            throw new ParkingException(INVALID_INPUT, &quot;Use 1-24 hours and a payment decision/checkpoint&quot;);</span>
+<span class="fc bfc" id="L25" title="All 2 branches covered.">        Workflow workflow = new Workflow(UUID.randomUUID().toString(), plate == null ? &quot;&quot; : plate, hours, card, PENDING_A, &quot;&quot;, List.of());</span>
+<span class="fc" id="L26">        workflows.save(workflow); // Intent is on disk BEFORE the first side effect.</span>
+<span class="fc" id="L27">        return advance(workflow, checkpoint);</span>
+    }
+    public Workflow resume(String id) {
+<span class="fc" id="L30">        Workflow workflow = workflows.get(id);</span>
+<span class="fc bfc" id="L31" title="All 2 branches covered.">        if (workflow.status() == COMPENSATING) return compensate(id, workflow.failure());</span>
+<span class="fc bfc" id="L32" title="All 6 branches covered.">        if (workflow.status() == COMPLETED || workflow.status() == COMPENSATED || workflow.status() == FAILED) return workflow;</span>
+<span class="fc" id="L33">        return advance(workflow, Checkpoint.NONE);</span>
+    }
+    private Workflow advance(Workflow workflow, Checkpoint checkpoint) {
+        try {
+            // Same ID on every stage. Services reload their own disk state and are idempotent.
+<span class="fc" id="L38">            gate.authorize(workflow.id(), workflow.plate());</span>
+<span class="fc" id="L39">            workflow.record(&quot;A committed&quot;); workflow.status(PENDING_B); workflows.save(workflow);</span>
+<span class="fc bfc" id="L40" title="All 2 branches covered.">            if (checkpoint == Checkpoint.AFTER_A) return workflow;</span>
+<span class="fc" id="L41">            spaces.reserve(workflow.id());</span>
+<span class="fc" id="L42">            workflow.record(&quot;B committed&quot;); workflow.status(PENDING_C); workflows.save(workflow);</span>
+<span class="fc bfc" id="L43" title="All 2 branches covered.">            if (checkpoint == Checkpoint.AFTER_B) return workflow;</span>
+<span class="fc" id="L44">            billing.confirm(workflow.id(), workflow.hours(), workflow.card());</span>
+<span class="fc" id="L45">            workflow.record(&quot;C committed&quot;); workflow.status(COMPLETED); workflows.save(workflow);</span>
+<span class="fc" id="L46">            return workflow;</span>
+<span class="fc" id="L47">        } catch (ParkingException | StorageException failure) {</span>
+<span class="fc" id="L48">            return compensate(workflow.id(), failure.getMessage());</span>
+        }
+    }
+    /** Package access: the admin facade can request rollback, clients use park/resume. */
+    Workflow compensate(String id, String reason) {
+<span class="fc" id="L53">        Workflow workflow = workflows.get(id);</span>
+<span class="fc bfc" id="L54" title="All 4 branches covered.">        if (workflow.status() == COMPENSATED || workflow.status() == FAILED) return workflow;</span>
+<span class="fc" id="L55">        workflow.failure(reason); workflow.status(COMPENSATING); workflows.save(workflow);</span>
+        // Persisted entities, not the workflow status or an in-memory committed flag,
+        // decide which effects exist. A failed rollback leaves COMPENSATING for retry.
+<span class="fc" id="L58">        Optional&lt;Payment&gt; payment = billing.find(id);</span>
+<span class="fc bfc" id="L59" title="All 6 branches covered.">        if (payment.isPresent() &amp;&amp; (payment.get().status() == Payment.Status.PAID || payment.get().status() == Payment.Status.NEW)) {</span>
+<span class="fc" id="L60">            billing.reverse(id); workflow.record(&quot;C reversed&quot;); workflows.save(workflow);</span>
+<span class="pc bpc" id="L61" title="1 of 6 branches missed.">        } else if (payment.isPresent() &amp;&amp; (payment.get().status() == Payment.Status.REFUNDED || payment.get().status() == Payment.Status.CANCELLED)) {</span>
+<span class="fc" id="L62">            workflow.record(&quot;C reversed&quot;); workflows.save(workflow);</span>
+        }
+<span class="fc" id="L64">        Optional&lt;ParkingReservation&gt; reservation = spaces.find(id);</span>
+<span class="fc bfc" id="L65" title="All 2 branches covered.">        if (reservation.isPresent()) {</span>
+<span class="fc" id="L66">            spaces.release(id); workflow.record(&quot;B released&quot;); workflows.save(workflow);</span>
+        }
+<span class="fc" id="L68">        Optional&lt;GatePermit&gt; permit = gate.find(id);</span>
+<span class="fc bfc" id="L69" title="All 2 branches covered.">        if (permit.isPresent()) {</span>
+<span class="fc" id="L70">            gate.revoke(id); workflow.record(&quot;A revoked&quot;); workflows.save(workflow);</span>
+        }
+<span class="pc bpc" id="L72" title="2 of 6 branches missed.">        workflow.status(permit.isPresent() || reservation.isPresent() || payment.isPresent() ? COMPENSATED : FAILED);</span>
+<span class="fc" id="L73">        workflows.save(workflow);</span>
+<span class="fc" id="L74">        return workflow;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ParkingReservation.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">smart-parking-garage</a> &gt; <a href="index.source.html" class="el_package">parking.space</a> &gt; <span class="el_source">ParkingReservation.java</span></div><h1>ParkingReservation.java</h1><pre class="source lang-java linenums">package parking.space;
+
+import parking.store.ParkingException;
+import static parking.store.ParkingException.Reason.ILLEGAL_TRANSITION;
+
+public final class ParkingReservation {
+<span class="fc" id="L7">    public enum Status { NEW, RESERVED, RELEASED }</span>
+    private final String id;
+    private final int space;
+    private Status status;
+<span class="fc" id="L11">    public ParkingReservation(String id, int space, Status status) { this.id = id; this.space = space; this.status = status; }</span>
+<span class="fc" id="L12">    public void reserve() { transition(Status.NEW, Status.RESERVED); }</span>
+<span class="fc" id="L13">    public void release() { transition(Status.RESERVED, Status.RELEASED); }</span>
+    private void transition(Status from, Status to) {
+<span class="fc bfc" id="L15" title="All 2 branches covered.">        if (status != from) throw new ParkingException(ILLEGAL_TRANSITION, &quot;Reservation cannot move from &quot; + status + &quot; to &quot; + to);</span>
+<span class="fc" id="L16">        status = to;</span>
+<span class="fc" id="L17">    }</span>
+<span class="fc" id="L18">    public String id() { return id; }</span>
+<span class="fc" id="L19">    public int space() { return space; }</span>
+<span class="fc" id="L20">    public Status status() { return status; }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

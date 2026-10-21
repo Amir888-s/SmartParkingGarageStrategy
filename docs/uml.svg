@@ -1,0 +1,262 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="1870" viewBox="0 0 1900 1870"><defs>
+<marker id="arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="none" stroke="#334155" stroke-width="1.5"/></marker>
+<marker id="inherit" markerWidth="11" markerHeight="11" refX="10" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="white" stroke="#334155"/></marker>
+</defs><rect width="1900" height="1870" fill="white"/><style>text{font-family:DejaVu Sans,Arial,sans-serif;fill:#152536}.title{font-size:28px;font-weight:bold}.name{font-size:19px;font-weight:bold}.body{font-size:15px}.label{font-size:14px;fill:#475569}.package{font-size:19px;font-weight:bold;fill:#374151}</style>
+<text x="40" y="42" class="title">Smart Parking Garage UML class diagram</text>
+<text x="40" y="68" class="label">24 top level production types   |   13 subsystem classes   |   Arrows show associations or dependencies</text>
+<rect x="35" y="100" width="275" height="135" rx="3" fill="white" stroke="#64748b" stroke-width="1.5"/>
+<rect x="36" y="101" width="273" height="46" fill="#eef3f8"/>
+<text x="47" y="119" class="label">«Client»</text>
+<text x="47" y="141" class="name">Main</text>
+<path d="M35 152H310" stroke="#cbd5e1"/>
+<text x="47" y="176" class="body">+ main(args)</text>
+<text x="47" y="199" class="body">- booleanInput(input)</text>
+<text x="47" y="222" class="body">- show(snapshot)</text>
+<rect x="35" y="310" width="275" height="158" rx="3" fill="white" stroke="#64748b" stroke-width="1.5"/>
+<rect x="36" y="311" width="273" height="46" fill="#eef3f8"/>
+<text x="47" y="329" class="label">«Composition root»</text>
+<text x="47" y="351" class="name">GarageApplication</text>
+<text x="47" y="380" class="body">- lockChannel; lock</text>
+<text x="47" y="403" class="body">- parking; admin</text>
+<path d="M35 408H310" stroke="#cbd5e1"/>
+<text x="47" y="432" class="body">+ GarageApplication(path, clock)</text>
+<text x="47" y="455" class="body">+ parking(); admin(); close()</text>
+<rect x="390" y="100" width="425" height="204" rx="3" fill="white" stroke="#64748b" stroke-width="1.5"/>
+<rect x="391" y="101" width="423" height="46" fill="#eef3f8"/>
+<text x="402" y="119" class="label">«Facade»</text>
+<text x="402" y="141" class="name">ParkingFacade</text>
+<text x="402" y="170" class="body">- gate; spaces; billing; workflows</text>
+<text x="402" y="193" class="body">Checkpoint: NONE / AFTER_A / AFTER_B</text>
+<path d="M390 198H815" stroke="#cbd5e1"/>
+<text x="402" y="222" class="body">+ park(plate, hours, card)</text>
+<text x="402" y="245" class="body">+ begin(..., checkpoint); resume(id)</text>
+<text x="402" y="268" class="body">- advance(workflow, checkpoint)</text>
+<text x="402" y="291" class="body">~ compensate(id, reason)</text>
+<rect x="915" y="100" width="425" height="204" rx="3" fill="white" stroke="#64748b" stroke-width="1.5"/>
+<rect x="916" y="101" width="423" height="46" fill="#eef3f8"/>
+<text x="927" y="119" class="label">«Facade»</text>
+<text x="927" y="141" class="name">AdminFacade</text>
+<text x="927" y="170" class="body">- gate; spaces; billing; workflows; parking</text>
+<text x="927" y="193" class="body">Snapshot: immutable inspection record</text>
+<path d="M915 198H1340" stroke="#cbd5e1"/>
+<text x="927" y="222" class="body">+ inspect(id); inspectAll(); cancel(id)</text>
+<text x="927" y="245" class="body">+ recoverPending(); overdueIds()</text>
+<text x="927" y="268" class="body">+ simulateFullGarage(full)</text>
+<text x="927" y="291" class="body">+ setGateOpen(); setSensorsOnline()</text>
+<rect x="1450" y="100" width="415" height="227" rx="3" fill="white" stroke="#64748b" stroke-width="1.5"/>
+<rect x="1451" y="101" width="413" height="46" fill="#eef3f8"/>
+<text x="1462" y="119" class="label">«Coordination entity»</text>
+<text x="1462" y="141" class="name">Workflow</text>
+<text x="1462" y="170" class="body">- id; plate; hours; card; status</text>
+<text x="1462" y="193" class="body">- failure; events</text>
+<text x="1462" y="216" class="body">Status: PENDING_A/B/C; COMPLETED</text>
+<text x="1462" y="239" class="body">COMPENSATING; COMPENSATED; FAILED</text>
+<path d="M1450 244H1865" stroke="#cbd5e1"/>
+<text x="1462" y="268" class="body">~ status(value); failure(value)</text>
+<text x="1462" y="291" class="body">~ record(event)</text>
+<text x="1462" y="314" class="body">+ accessors; events()</text>
+<rect x="1450" y="385" width="415" height="135" rx="3" fill="white" stroke="#64748b" stroke-width="1.5"/>
+<rect x="1451" y="386" width="413" height="46" fill="#eef3f8"/>
+<text x="1462" y="404" class="label">«Progress gateway»</text>
+<text x="1462" y="426" class="name">WorkflowRepository</text>
+<text x="1462" y="455" class="body">- store: RowStore</text>
+<path d="M1450 460H1865" stroke="#cbd5e1"/>
+<text x="1462" y="484" class="body">+ all(); get(id); save(workflow)</text>
+<text x="1462" y="507" class="body">- encode(text); decode(text)</text>
+<polyline points="310,150 390,150" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<text x="323" y="139" class="label">uses</text>
+<polyline points="173,235 173,310" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="310,405 352,405 352,268 390,268" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)" stroke-dasharray="6,5"/>
+<text x="316" y="389" class="label">creates</text>
+<polyline points="310,425 865,425 865,288 915,288" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)" stroke-dasharray="6,5"/>
+<polyline points="915,245 815,245" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<text x="834" y="234" class="label">undo</text>
+<polyline points="173,100 173,85 1125,85 1125,100" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)" stroke-dasharray="6,5"/>
+<polyline points="1660,385 1660,327" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<text x="1674" y="356" class="label">loads/saves</text>
+<polyline points="815,200 848,200 848,364 1432,364 1432,441 1450,441" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="1340,210 1380,210 1380,475 1450,475" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="25" y="535" width="570" height="843" rx="6" fill="#f3f6fa" stroke="#cbd5e1"/>
+<text x="43" y="564" class="package">Subsystem A admission   4 classes</text>
+<rect x="635" y="535" width="570" height="843" rx="6" fill="#f3f6fa" stroke="#cbd5e1"/>
+<text x="653" y="564" class="package">Subsystem B spaces   4 classes</text>
+<rect x="1245" y="535" width="625" height="843" rx="6" fill="#f3f6fa" stroke="#cbd5e1"/>
+<text x="1263" y="564" class="package">Subsystem C finalization   5 classes</text>
+<rect x="50" y="595" width="510" height="158" rx="3" fill="white" stroke="#64748b" stroke-width="1.5"/>
+<rect x="51" y="596" width="508" height="46" fill="#eef3f8"/>
+<text x="62" y="614" class="label">«class»</text>
+<text x="62" y="636" class="name">GateController</text>
+<text x="62" y="665" class="body">- repository: GateRepository</text>
+<text x="62" y="688" class="body">- reader: LicensePlateReader</text>
+<path d="M50 693H560" stroke="#cbd5e1"/>
+<text x="62" y="717" class="body">+ authorize(id, input); revoke(id)</text>
+<text x="62" y="740" class="body">+ find(id); all(); setOpen(open)</text>
+<rect x="660" y="595" width="510" height="181" rx="3" fill="white" stroke="#64748b" stroke-width="1.5"/>
+<rect x="661" y="596" width="508" height="46" fill="#eef3f8"/>
+<text x="672" y="614" class="label">«class»</text>
+<text x="672" y="636" class="name">ReservationManager</text>
+<text x="672" y="665" class="body">- repository: SpaceRepository</text>
+<text x="672" y="688" class="body">- sensors: SpaceSensorGrid</text>
+<path d="M660 693H1170" stroke="#cbd5e1"/>
+<text x="672" y="717" class="body">+ reserve(id); release(id)</text>
+<text x="672" y="740" class="body">+ find(id); all()</text>
+<text x="672" y="763" class="body">+ setBlockedSpaces(); setSensorsOnline()</text>
+<rect x="1270" y="595" width="575" height="158" rx="3" fill="white" stroke="#64748b" stroke-width="1.5"/>
+<rect x="1271" y="596" width="573" height="46" fill="#eef3f8"/>
+<text x="1282" y="614" class="label">«class»</text>
+<text x="1282" y="636" class="name">PaymentTerminal</text>
+<text x="1282" y="665" class="body">- repository; pricing; alert; clock</text>
+<text x="1282" y="688" class="body">Card: APPROVE / DECLINE</text>
+<path d="M1270 693H1845" stroke="#cbd5e1"/>
+<text x="1282" y="717" class="body">+ confirm(id, hours, card); reverse(id)</text>
+<text x="1282" y="740" class="body">+ find(id); all(); overdueIds()</text>
+<rect x="50" y="860" width="260" height="204" rx="3" fill="white" stroke="#64748b" stroke-width="1.5"/>
+<rect x="51" y="861" width="258" height="46" fill="#eef3f8"/>
+<text x="62" y="879" class="label">«Entity»</text>
+<text x="62" y="901" class="name">GatePermit</text>
+<text x="62" y="930" class="body">- id; plate; status</text>
+<text x="62" y="953" class="body">Status: NEW</text>
+<text x="62" y="976" class="body">AUTHORIZED / REVOKED</text>
+<path d="M50 981H310" stroke="#cbd5e1"/>
+<text x="62" y="1005" class="body">+ authorize(); revoke()</text>
+<text x="62" y="1028" class="body">- transition(from, to)</text>
+<text x="62" y="1051" class="body">+ id(); plate(); status()</text>
+<rect x="330" y="860" width="230" height="89" rx="3" fill="white" stroke="#64748b" stroke-width="1.5"/>
+<rect x="331" y="861" width="228" height="46" fill="#eef3f8"/>
+<text x="342" y="879" class="label">«Pure business logic»</text>
+<text x="342" y="901" class="name">LicensePlateReader</text>
+<path d="M330 912H560" stroke="#cbd5e1"/>
+<text x="342" y="936" class="body">+ read(input): String</text>
+<rect x="50" y="1140" width="510" height="135" rx="3" fill="white" stroke="#64748b" stroke-width="1.5"/>
+<rect x="51" y="1141" width="508" height="46" fill="#eef3f8"/>
+<text x="62" y="1159" class="label">«Persistence gateway»</text>
+<text x="62" y="1181" class="name">GateRepository</text>
+<text x="62" y="1210" class="body">- store: RowStore</text>
+<path d="M50 1215H560" stroke="#cbd5e1"/>
+<text x="62" y="1239" class="body">+ all(); find(id); save(permit)</text>
+<text x="62" y="1262" class="body">+ isOpen(); setOpen(open)</text>
+<rect x="660" y="860" width="260" height="204" rx="3" fill="white" stroke="#64748b" stroke-width="1.5"/>
+<rect x="661" y="861" width="258" height="46" fill="#eef3f8"/>
+<text x="672" y="879" class="label">«Entity»</text>
+<text x="672" y="901" class="name">ParkingReservation</text>
+<text x="672" y="930" class="body">- id; space; status</text>
+<text x="672" y="953" class="body">Status: NEW</text>
+<text x="672" y="976" class="body">RESERVED / RELEASED</text>
+<path d="M660 981H920" stroke="#cbd5e1"/>
+<text x="672" y="1005" class="body">+ reserve(); release()</text>
+<text x="672" y="1028" class="body">- transition(from, to)</text>
+<text x="672" y="1051" class="body">+ id(); space(); status()</text>
+<rect x="940" y="860" width="230" height="135" rx="3" fill="white" stroke="#64748b" stroke-width="1.5"/>
+<rect x="941" y="861" width="228" height="46" fill="#eef3f8"/>
+<text x="952" y="879" class="label">«Pure business logic»</text>
+<text x="952" y="901" class="name">SpaceSensorGrid</text>
+<text x="952" y="930" class="body">+ CAPACITY = 3</text>
+<path d="M940 935H1170" stroke="#cbd5e1"/>
+<text x="952" y="959" class="body">+ firstFree(occupied,</text>
+<text x="952" y="982" class="body">  blocked, online): int</text>
+<rect x="660" y="1140" width="510" height="158" rx="3" fill="white" stroke="#64748b" stroke-width="1.5"/>
+<rect x="661" y="1141" width="508" height="46" fill="#eef3f8"/>
+<text x="672" y="1159" class="label">«Persistence gateway»</text>
+<text x="672" y="1181" class="name">SpaceRepository</text>
+<text x="672" y="1210" class="body">- store: RowStore</text>
+<path d="M660 1215H1170" stroke="#cbd5e1"/>
+<text x="672" y="1239" class="body">+ all(); find(id); save(reservation)</text>
+<text x="672" y="1262" class="body">+ blockedSpaces(); setBlockedSpaces()</text>
+<text x="672" y="1285" class="body">+ sensorsOnline(); setSensorsOnline()</text>
+<rect x="1270" y="860" width="285" height="227" rx="3" fill="white" stroke="#64748b" stroke-width="1.5"/>
+<rect x="1271" y="861" width="283" height="46" fill="#eef3f8"/>
+<text x="1282" y="879" class="label">«Entity»</text>
+<text x="1282" y="901" class="name">Payment</text>
+<text x="1282" y="930" class="body">- id; amount; dueAt; status</text>
+<text x="1282" y="953" class="body">Status: NEW / PAID / DECLINED</text>
+<text x="1282" y="976" class="body">REFUNDED / CANCELLED</text>
+<path d="M1270 981H1555" stroke="#cbd5e1"/>
+<text x="1282" y="1005" class="body">+ pay(); decline()</text>
+<text x="1282" y="1028" class="body">+ refund(); cancel()</text>
+<text x="1282" y="1051" class="body">- transition(from, to)</text>
+<text x="1282" y="1074" class="body">+ accessors</text>
+<rect x="1580" y="860" width="265" height="112" rx="3" fill="white" stroke="#64748b" stroke-width="1.5"/>
+<rect x="1581" y="861" width="263" height="46" fill="#eef3f8"/>
+<text x="1592" y="879" class="label">«Pure business logic»</text>
+<text x="1592" y="901" class="name">PricingPolicy</text>
+<text x="1592" y="930" class="body">+ HOURLY_RATE = 500</text>
+<path d="M1580 935H1845" stroke="#cbd5e1"/>
+<text x="1592" y="959" class="body">+ amountFor(hours): int</text>
+<rect x="1580" y="1030" width="265" height="112" rx="3" fill="white" stroke="#64748b" stroke-width="1.5"/>
+<rect x="1581" y="1031" width="263" height="46" fill="#eef3f8"/>
+<text x="1592" y="1049" class="label">«Pure business logic»</text>
+<text x="1592" y="1071" class="name">OverstayAlert</text>
+<path d="M1580 1082H1845" stroke="#cbd5e1"/>
+<text x="1592" y="1106" class="body">+ dueAt(start, hours)</text>
+<text x="1592" y="1129" class="body">+ isOverdue(payment, now)</text>
+<rect x="1270" y="1200" width="575" height="112" rx="3" fill="white" stroke="#64748b" stroke-width="1.5"/>
+<rect x="1271" y="1201" width="573" height="46" fill="#eef3f8"/>
+<text x="1282" y="1219" class="label">«Persistence gateway»</text>
+<text x="1282" y="1241" class="name">BillingRepository</text>
+<text x="1282" y="1270" class="body">- store: RowStore</text>
+<path d="M1270 1275H1845" stroke="#cbd5e1"/>
+<text x="1282" y="1299" class="body">+ all(); find(id); save(payment)</text>
+<polyline points="560,304 560,475 230,475 230,595" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="560,304 560,475 840,475 840,595" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="560,304 560,475 1440,475 1440,595" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="1125,304 1125,500 230,500 230,595" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="1125,304 1125,500 840,500 840,595" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="1125,304 1125,500 1440,500 1440,595" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="170,753 180,860" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="455,753 445,860" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="785,776 790,860" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="1080,776 1055,860" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="1410,753 1412,860" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="1720,753 1710,860" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="555,705 579,705 579,1200 560,1200" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="1165,735 1188,735 1188,1210 1170,1210" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="1840,715 1860,715 1860,1260 1845,1260" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="1840,740 1854,740 1854,1080 1845,1080" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="180,1140 180,1064" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)" stroke-dasharray="6,5"/>
+<polyline points="790,1140 790,1064" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)" stroke-dasharray="6,5"/>
+<polyline points="1412,1200 1412,1087" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)" stroke-dasharray="6,5"/>
+<polyline points="1580,1080 1555,1080" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)" stroke-dasharray="6,5"/>
+<text x="40" y="1420" class="package">Shared storage and exceptions   infrastructure outside the subsystem class counts</text>
+<rect x="630" y="1450" width="550" height="112" rx="3" fill="white" stroke="#64748b" stroke-width="1.5"/>
+<rect x="631" y="1451" width="548" height="46" fill="#eef3f8"/>
+<text x="642" y="1469" class="label">«Interface»</text>
+<text x="642" y="1491" class="name">RowStore</text>
+<path d="M630 1502H1180" stroke="#cbd5e1"/>
+<text x="642" y="1526" class="body">+ read(table): List of String arrays</text>
+<text x="642" y="1549" class="body">+ write(table, rows): void</text>
+<rect x="35" y="1450" width="480" height="135" rx="3" fill="white" stroke="#64748b" stroke-width="1.5"/>
+<rect x="36" y="1451" width="478" height="46" fill="#eef3f8"/>
+<text x="47" y="1469" class="label">«Atomic CSV storage»</text>
+<text x="47" y="1491" class="name">CsvStore</text>
+<text x="47" y="1520" class="body">- directory: Path</text>
+<path d="M35 1525H515" stroke="#cbd5e1"/>
+<text x="47" y="1549" class="body">+ CsvStore(directory)</text>
+<text x="47" y="1572" class="body">+ read(table); write(table, rows)</text>
+<rect x="1260" y="1450" width="590" height="135" rx="3" fill="white" stroke="#64748b" stroke-width="1.5"/>
+<rect x="1261" y="1451" width="588" height="46" fill="#eef3f8"/>
+<text x="1272" y="1469" class="label">«Domain exception»</text>
+<text x="1272" y="1491" class="name">ParkingException</text>
+<text x="1272" y="1520" class="body">- reason: Reason</text>
+<text x="1272" y="1543" class="body">Reason: input / availability / transition / conflict</text>
+<path d="M1260 1548H1850" stroke="#cbd5e1"/>
+<text x="1272" y="1572" class="body">+ ParkingException(reason, message); reason()</text>
+<rect x="1260" y="1640" width="590" height="89" rx="3" fill="white" stroke="#64748b" stroke-width="1.5"/>
+<rect x="1261" y="1641" width="588" height="46" fill="#eef3f8"/>
+<text x="1272" y="1659" class="label">«Persistence exception»</text>
+<text x="1272" y="1681" class="name">StorageException</text>
+<path d="M1260 1692H1850" stroke="#cbd5e1"/>
+<text x="1272" y="1716" class="body">+ StorageException(message, cause)</text>
+<polyline points="515,1530 630,1530" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#inherit)" stroke-dasharray="6,5"/>
+<text x="540" y="1518" class="label">implements</text>
+<polyline points="305,1298 305,1390 725,1390 725,1450" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="915,1321 915,1390 905,1390 905,1450" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="1555,1335 1555,1390 1075,1390 1075,1450" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="1865,480 1890,480 1890,1405 1150,1405 1150,1450" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)"/>
+<text x="40" y="1658" class="name">Notes</text>
+<text x="40" y="1688" class="body">+ public   - private   ~ package access   |   Constructors and routine accessors are compacted in the boxes.</text>
+<text x="40" y="1716" class="body">No A, B or C class imports another domain subsystem. Facades perform the cross-subsystem coordination.</text>
+<text x="40" y="1744" class="body">GarageApplication implements AutoCloseable and creates the graph; the CLI calls the two facade APIs.</text>
+<text x="40" y="1772" class="body">ParkingException and StorageException extend RuntimeException. Clock, Path and FileLock are JDK types.</text>
+<text x="40" y="1800" class="body">Solid arrows: references/calls. Dashed arrows: dependencies. Hollow triangle: interface realization.</text>
+<text x="40" y="1828" class="body">Entity status transition methods enforce legal state changes independently of either facade.</text>
+</svg>

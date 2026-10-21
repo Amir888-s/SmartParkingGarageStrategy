@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SpaceRepository.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">smart-parking-garage</a> &gt; <a href="index.source.html" class="el_package">parking.space</a> &gt; <span class="el_source">SpaceRepository.java</span></div><h1>SpaceRepository.java</h1><pre class="source lang-java linenums">package parking.space;
+
+import java.util.*;
+import java.util.stream.Collectors;
+import parking.store.RowStore;
+
+public final class SpaceRepository {
+    private final RowStore store;
+<span class="fc" id="L9">    public SpaceRepository(RowStore store) { this.store = store; }</span>
+    public List&lt;ParkingReservation&gt; all() {
+<span class="fc" id="L11">        return store.read(&quot;space&quot;).stream().map(r -&gt; new ParkingReservation(r[0], Integer.parseInt(r[1]), ParkingReservation.Status.valueOf(r[2]))).toList();</span>
+    }
+<span class="fc" id="L13">    public Optional&lt;ParkingReservation&gt; find(String id) { return all().stream().filter(r -&gt; r.id().equals(id)).findFirst(); }</span>
+    public void save(ParkingReservation reservation) {
+<span class="fc" id="L15">        List&lt;ParkingReservation&gt; reservations = new ArrayList&lt;&gt;(all());</span>
+<span class="fc" id="L16">        reservations.removeIf(r -&gt; r.id().equals(reservation.id())); reservations.add(reservation);</span>
+<span class="fc" id="L17">        store.write(&quot;space&quot;, reservations.stream().map(r -&gt; new String[]{r.id(), String.valueOf(r.space()), r.status().name()}).toList());</span>
+<span class="fc" id="L18">    }</span>
+<span class="fc" id="L19">    public Set&lt;Integer&gt; blockedSpaces() { return store.read(&quot;space_blocks&quot;).stream().map(r -&gt; Integer.parseInt(r[0])).collect(Collectors.toSet()); }</span>
+<span class="fc" id="L20">    public void setBlockedSpaces(Set&lt;Integer&gt; blocked) { store.write(&quot;space_blocks&quot;, blocked.stream().sorted().map(n -&gt; new String[]{n.toString()}).toList()); }</span>
+<span class="fc" id="L21">    public boolean sensorsOnline() { return store.read(&quot;sensor_settings&quot;).stream().findFirst().map(r -&gt; Boolean.parseBoolean(r[0])).orElse(true); }</span>
+<span class="fc" id="L22">    public void setSensorsOnline(boolean online) { store.write(&quot;sensor_settings&quot;, Collections.singletonList(new String[]{String.valueOf(online)})); }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

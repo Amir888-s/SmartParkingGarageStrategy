@@ -1,0 +1,123 @@
+From 4a8187a83db4de021efacf2b3fe8854716e9aeb4 Mon Sep 17 00:00:00 2001
+From: Project Maintenance <project-maintenance@localhost>
+Date: Tue, 20 Oct 2026 14:57:00 +0500
+Subject: [PATCH] Assignment 5 before: centralize tariff variants in
+ conditional pricing with contract tests
+
+---
+ .../java/parking/billing/PricingPolicy.java   | 16 ++++++++-
+ .../java/parking/pricing/OccupancySource.java |  5 +++
+ .../pricing/SimulatedOccupancySource.java     | 13 +++++++
+ .../parking/strategy/PricingContractTest.java | 36 +++++++++++++++++++
+ 4 files changed, 69 insertions(+), 1 deletion(-)
+ create mode 100644 src/main/java/parking/pricing/OccupancySource.java
+ create mode 100644 src/main/java/parking/pricing/SimulatedOccupancySource.java
+ create mode 100644 src/test/java/parking/strategy/PricingContractTest.java
+
+diff --git a/src/main/java/parking/billing/PricingPolicy.java b/src/main/java/parking/billing/PricingPolicy.java
+index 333d0c4..8b95644 100644
+--- a/src/main/java/parking/billing/PricingPolicy.java
++++ b/src/main/java/parking/billing/PricingPolicy.java
+@@ -1,12 +1,26 @@
+ package parking.billing;
+ 
++import java.util.Objects;
++import parking.pricing.OccupancySource;
+ import parking.store.ParkingException;
+ import static parking.store.ParkingException.Reason.INVALID_INPUT;
+ 
++/** Assignment 5 BEFORE: all tariff variants are coupled to one switch. */
+ public final class PricingPolicy {
+     public static final int HOURLY_RATE = 500;
++    private final String mode;
++    private final OccupancySource source;
++    public PricingPolicy() { this("hourly", () -> 0.0); }
++    public PricingPolicy(String mode, OccupancySource source) {
++        this.mode = Objects.requireNonNull(mode); this.source = Objects.requireNonNull(source);
++    }
+     public int amountFor(int hours) {
+         if (hours < 1 || hours > 24) throw new ParkingException(INVALID_INPUT, "Parking duration must be 1-24 whole hours");
+-        return hours * HOURLY_RATE;
++        return switch (mode) {
++            case "hourly" -> hours * HOURLY_RATE;
++            case "capped" -> Math.min(hours * HOURLY_RATE, 3000);
++            case "demand" -> hours * HOURLY_RATE + (int) Math.ceil(source.occupancy() * 250) * Math.max(0, hours - 2);
++            default -> throw new IllegalArgumentException("Unknown pricing mode: " + mode);
++        };
+     }
+ }
+diff --git a/src/main/java/parking/pricing/OccupancySource.java b/src/main/java/parking/pricing/OccupancySource.java
+new file mode 100644
+index 0000000..020cae8
+--- /dev/null
++++ b/src/main/java/parking/pricing/OccupancySource.java
+@@ -0,0 +1,5 @@
++package parking.pricing;
++
++/** Replaceable sensor boundary; occupancy is a fraction from zero to one. */
++@FunctionalInterface
++public interface OccupancySource { double occupancy(); }
+diff --git a/src/main/java/parking/pricing/SimulatedOccupancySource.java b/src/main/java/parking/pricing/SimulatedOccupancySource.java
+new file mode 100644
+index 0000000..f19b700
+--- /dev/null
++++ b/src/main/java/parking/pricing/SimulatedOccupancySource.java
+@@ -0,0 +1,13 @@
++package parking.pricing;
++
++/** Mutable simulated sensor for repeatable demonstrations. */
++public final class SimulatedOccupancySource implements OccupancySource {
++    private double value;
++    public SimulatedOccupancySource(double value) { setOccupancy(value); }
++    public void setOccupancy(double value) {
++        if (!Double.isFinite(value) || value < 0 || value > 1)
++            throw new IllegalArgumentException("Occupancy must be between zero and one");
++        this.value = value;
++    }
++    @Override public double occupancy() { return value; }
++}
+diff --git a/src/test/java/parking/strategy/PricingContractTest.java b/src/test/java/parking/strategy/PricingContractTest.java
+new file mode 100644
+index 0000000..3727598
+--- /dev/null
++++ b/src/test/java/parking/strategy/PricingContractTest.java
+@@ -0,0 +1,36 @@
++package parking.strategy;
++
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.params.ParameterizedTest;
++import org.junit.jupiter.params.provider.CsvSource;
++import org.junit.jupiter.params.provider.ValueSource;
++import parking.billing.PricingPolicy;
++import parking.store.ParkingException;
++import static org.junit.jupiter.api.Assertions.*;
++
++/** Identical characterization tests are run before refactoring and afterwards. */
++class PricingContractTest {
++    @ParameterizedTest
++    @CsvSource({"hourly,1,500", "hourly,8,4000", "hourly,24,12000",
++        "capped,1,500", "capped,6,3000", "capped,8,3000", "capped,24,3000",
++        "demand,1,500", "demand,2,1000", "demand,8,5200", "demand,24,16400"})
++    void tariffsKeepTheirObservableResults(String mode, int hours, int expected) {
++        assertEquals(expected, new PricingPolicy(mode, () -> 0.8).amountFor(hours));
++    }
++    @ParameterizedTest @ValueSource(strings={"hourly", "capped", "demand"})
++    void everyTariffIsNonnegativeMonotonicAndRejectsInvalidHours(String mode) {
++        PricingPolicy pricing = new PricingPolicy(mode, () -> 0.8);
++        int previous = 0;
++        for (int hours=1; hours<=24; hours++) {
++            int amount = pricing.amountFor(hours);
++            assertTrue(amount >= 0); assertTrue(amount >= previous); previous = amount;
++        }
++        assertThrows(ParkingException.class, () -> pricing.amountFor(0));
++        assertThrows(ParkingException.class, () -> pricing.amountFor(25));
++    }
++    @Test void defaultTariffRemainsHourly() { assertEquals(1000, new PricingPolicy().amountFor(2)); }
++    @Test void externalSensorChangesDemandPrice() {
++        assertEquals(4000, new PricingPolicy("demand", () -> 0.0).amountFor(8));
++        assertEquals(5500, new PricingPolicy("demand", () -> 1.0).amountFor(8));
++    }
++}
+-- 
+2.51.1
+
